@@ -103,6 +103,28 @@ mkdir -p ~/.local/state/cc-panel && printf '%s' "$input" > ~/.local/state/cc-pan
 
 Without it the 5H/SEM bars show `--`.
 
+## Click a tile to jump to its cmux tab
+
+Sessions running inside [cmux](https://cmux.com) report their workspace and tab
+(`CMUX_WORKSPACE_ID` / `CMUX_SURFACE_ID`, inherited by the hooks). Clicking such a tile
+(or Enter/Space on it) brings that tab to the front.
+
+cmux only accepts socket commands from processes started inside cmux terminals, and the
+hub runs under launchd. So on each machine, open a cmux tab and leave this running:
+
+```sh
+npm run relay
+```
+
+The relay long-polls the hub (`GET /api/relay/next`) and, for each click, runs exactly
+`cmux workspace select`, `cmux focus-panel` and `open -b com.cmuxterm.app`, via
+`execFile` with no shell and only validated UUIDs. It can switch tabs; it cannot type into
+them. cmux's socket mode stays at its default (`cmuxOnly`).
+
+A tile is clickable only when its session runs in cmux and that host's relay polled in the
+last minute; the menu bar shows `⌘` next to hosts with a live relay. Clicks older than
+10 s are dropped.
+
 ## Install
 
 Hub machine:
@@ -135,6 +157,5 @@ mandatory on every `/api` route. Keep it on the tailnet.
 
 ## Not done yet
 
-- Tap a session to open/focus its terminal (local host only; remote sessions stay read-only).
 - Estimated cost.
 - Pinned sessions.

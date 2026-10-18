@@ -14,6 +14,17 @@ export type HookEventName = (typeof HOOK_EVENTS)[number];
 
 export type SessionStatus = 'idle' | 'working' | 'waiting' | 'done' | 'error' | 'ended';
 
+/** Where a session lives inside cmux (both UUIDs, from the hook's environment). */
+export interface CmuxRef {
+  workspace: string;
+  surface: string;
+}
+
+/** What a cmux relay receives: which tab to bring to the front. */
+export interface FocusCommand extends CmuxRef {
+  project: string;
+}
+
 /** What a reporter sends to the hub. Deliberately minimal: no prompts, no tool I/O. */
 export interface HubEvent {
   host: string;
@@ -23,6 +34,7 @@ export interface HubEvent {
   ts: number;
   notificationType?: string;
   toolName?: string;
+  cmux?: CmuxRef;
 }
 
 export interface LimitWindow {
@@ -56,11 +68,14 @@ export interface Session {
   since: number;
   lastEventAt: number;
   detail?: string;
+  cmux?: CmuxRef;
 }
 
 export interface HostRecord {
   host: string;
   lastSeenAt: number;
+  /** Last time this host's cmux relay polled the hub. */
+  relaySeenAt?: number;
 }
 
 export interface Store {
@@ -72,10 +87,13 @@ export interface Store {
 export interface SessionView extends Session {
   project: string;
   hostOnline: boolean;
+  /** A click can bring this session's cmux tab to the front. */
+  canFocus: boolean;
 }
 
 export interface HostView extends HostRecord {
   online: boolean;
+  relay: boolean;
 }
 
 export interface View {

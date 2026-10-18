@@ -53,3 +53,13 @@ test('heartbeat with limits', () => {
   assert.equal(parseHeartbeat({ host: 'desktop', ts: 5, limits: { fiveHour: { usedPct: 1, resetsAt: 2 } } }).ok, false);
   assert.equal(parseHeartbeat({ host: 'desktop', ts: 5, limits: 'x' }).ok, false);
 });
+
+test('cmux ref is optional and must be a pair of UUIDs', () => {
+  const ws = 'A74797B6-7297-46C0-A6EB-58F34F9747C9';
+  const ok = parseEvent({ ...valid, cmux: { workspace: ws, surface: ws } });
+  assert.ok(ok.ok);
+  assert.deepEqual(ok.value.cmux, { workspace: ws, surface: ws });
+  assert.equal(parseEvent({ ...valid, cmux: { workspace: ws } }).ok, false);
+  assert.equal(parseEvent({ ...valid, cmux: { workspace: 'x', surface: ws } }).ok, false);
+  assert.equal(parseEvent({ ...valid, cmux: 'nope' }).ok, false);
+});

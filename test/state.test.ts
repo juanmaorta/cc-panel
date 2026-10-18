@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyEvent, applyHeartbeat, buildView, emptyStore, prune, sessionKey } from '../src/state.ts';
+import { applyEvent, applyHeartbeat, applyRelaySeen, buildView, emptyStore, prune, sessionKey } from '../src/state.ts';
 import type { HubEvent, Store } from '../src/types.ts';
 
 const T0 = 1_800_000_000_000;
@@ -182,4 +182,25 @@ test('limits: newest observation wins across hosts; view applies resets', () => 
 test('firstSeenAt is set once and never moves', () => {
   const s = run([ev('SessionStart', T0), ev('UserPromptSubmit', T0 + 5), ev('Stop', T0 + 9)]);
   assert.equal(s.sessions[sessionKey('laptop', 's1')]?.firstSeenAt, T0);
+});
+
+const CMUX = { workspace: 'A74797B6-7297-46C0-A6EB-58F34F9747C9', surface: '5FD931CE-E304-41CF-A1F6-2398029034B8' };
+
+test('sessions remember their cmux tab; events without one keep it', () => {
+  const s = run([ev('SessionStart', T0, { cmux: CMUX }), ev('Stop', T0 + 1)]);
+  assert.deepEqual(s.sessions[sessionKey('laptop', 's1')]?.cmux, CMUX);
+});
+
+test('canFocus needs a cmux tab, an online host and a live relay', () => {
+  const opts = { ...viewOpts, relayTtlMs: MIN };
+  const withTab = run([ev('Stop', T0, { cmux: CMUX })]);
+  assert.equal(buildView(withTab, T0, opts).sessions[0]?.canFocus, false, 'no relay yet');
+
+  const relayed = applyRelaySeen(withTab, 'laptop', T0);
+  assert.equal(buildView(relayed, T0 + 1, opts).sessions[0]?.canFocus, true);
+  assert.equal(buildView(relayed, T0 + 1, opts).hosts[0]?.relay, true);
+  assert.equal(buildView(relayed, T0 + 2 * MIN, opts).sessions[0]?.canFocus, false, 'relay went quiet');
+
+  const noTab = applyRelaySeen(run([ev('Stop', T0)]), 'laptop', T0);
+  assert.equal(buildView(noTab, T0, opts).sessions[0]?.canFocus, false, 'session outside cmux');
 });

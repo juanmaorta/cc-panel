@@ -78,6 +78,9 @@
   .tile .status, .tile .meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tile .meta { font-size: 14px; }
   .tile .floor { display: block; image-rendering: pixelated; align-self: center; margin: 2px 0 6px; }
+  .tile.clickable { cursor: pointer; }
+  .tile.clickable:focus-visible { outline: 2px dotted var(--ink); outline-offset: 3px; }
+  .tile.pressed { filter: invert(1); }
 
   .s-done .titlebar { background: var(--stripes) content-box; }          /* active window */
   .s-working .titlebar { background: var(--dither) content-box; }        /* busy: desktop gray */

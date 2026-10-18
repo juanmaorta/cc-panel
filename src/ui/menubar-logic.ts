@@ -10,7 +10,7 @@ export interface LimitState {
 }
 
 export interface MenuState {
-  hosts: { host: string; online: boolean }[];
+  hosts: { host: string; online: boolean; relay: boolean }[];
   fiveHour: LimitState | null;
   sevenDay: LimitState | null;
   tally: { waiting: number; done: number; working: number; idle: number };
@@ -47,7 +47,7 @@ export function menuState(v: View): MenuState {
   const sessions = live(v);
   const count = (...st: SessionStatus[]) => sessions.filter((s) => st.includes(s.status)).length;
   return {
-    hosts: v.hosts.map((h) => ({ host: h.host, online: h.online })),
+    hosts: v.hosts.map((h) => ({ host: h.host, online: h.online, relay: h.relay })),
     fiveHour: limit(v.limits?.fiveHour, v.generatedAt),
     sevenDay: limit(v.limits?.sevenDay, v.generatedAt),
     tally: { waiting: count('waiting', 'error'), done: count('done'), working: count('working'), idle: count('idle') },

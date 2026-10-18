@@ -7,13 +7,13 @@ const NOW = 1_800_000_000_000;
 const MIN = 60_000;
 
 function s(id: string, status: SessionStatus, host = 'laptop', hostOnline = true): SessionView {
-  return { host, sessionId: id, cwd: `/p/${id}`, project: id, status, firstSeenAt: 0, since: 0, lastEventAt: 0, hostOnline };
+  return { host, sessionId: id, cwd: `/p/${id}`, project: id, status, firstSeenAt: 0, since: 0, lastEventAt: 0, hostOnline, canFocus: false };
 }
 
 function view(sessions: SessionView[], extra: Partial<View> = {}): View {
   return {
     generatedAt: NOW,
-    hosts: [{ host: 'laptop', lastSeenAt: NOW, online: true }],
+    hosts: [{ host: 'laptop', lastSeenAt: NOW, online: true, relay: false }],
     sessions,
     limits: {
       observedAt: NOW,
@@ -55,12 +55,15 @@ test('hosts keep their order and online flag', () => {
   const m = menuState(
     view([], {
       hosts: [
-        { host: 'laptop', lastSeenAt: NOW, online: true },
-        { host: 'desktop', lastSeenAt: 0, online: false },
+        { host: 'laptop', lastSeenAt: NOW, online: true, relay: true },
+        { host: 'desktop', lastSeenAt: 0, online: false, relay: false },
       ],
     }),
   );
-  assert.deepEqual(m.hosts, [{ host: 'laptop', online: true }, { host: 'desktop', online: false }]);
+  assert.deepEqual(m.hosts, [
+    { host: 'laptop', online: true, relay: true },
+    { host: 'desktop', online: false, relay: false },
+  ]);
 });
 
 test('flash: beep when a session starts waiting or fails, blink when one finishes', () => {

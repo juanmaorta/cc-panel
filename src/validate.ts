@@ -1,4 +1,4 @@
-import { HOOK_EVENTS, type Heartbeat, type HookEventName, type HubEvent, type LimitWindow, type Limits, type Result } from './types.ts';
+import { HOOK_EVENTS, type CmuxRef, type Heartbeat, type HookEventName, type HubEvent, type LimitWindow, type Limits, type Result } from './types.ts';
 
 const HOST_RE = /^[A-Za-z0-9._-]{1,64}$/;
 const SESSION_RE = /^[A-Za-z0-9_-]{1,128}$/;
@@ -20,6 +20,17 @@ function optTag(o: Obj, key: string): Result<string | undefined> {
   if (v === undefined) return { ok: true, value: undefined };
   if (typeof v !== 'string' || v.length > MAX_TAG) return { ok: false, error: `invalid ${key}` };
   return { ok: true, value: v };
+}
+
+const UUID_RE = /^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$/;
+
+export function isUuid(v: unknown): v is string {
+  return typeof v === 'string' && UUID_RE.test(v);
+}
+
+export function parseCmux(v: unknown): Result<CmuxRef> {
+  if (!isObj(v) || !isUuid(v.workspace) || !isUuid(v.surface)) return { ok: false, error: 'invalid cmux' };
+  return { ok: true, value: { workspace: v.workspace, surface: v.surface } };
 }
 
 export function isHost(v: unknown): v is string {
@@ -45,6 +56,11 @@ export function parseEvent(body: unknown): Result<HubEvent> {
   const value: HubEvent = { host, sessionId, event: event as HookEventName, cwd, ts };
   if (toolName.value !== undefined) value.toolName = toolName.value;
   if (notificationType.value !== undefined) value.notificationType = notificationType.value;
+  if (body.cmux !== undefined) {
+    const cmux = parseCmux(body.cmux);
+    if (!cmux.ok) return cmux;
+    value.cmux = cmux.value;
+  }
   return { ok: true, value };
 }
 
@@ -78,4 +94,16 @@ export function parseHeartbeat(body: unknown): Result<Heartbeat> {
     value.limits = limits.value;
   }
   return { ok: true, value };
+}
+
+export interface FocusRequest {
+  host: string;
+  sessionId: string;
+}
+
+export function parseFocusRequest(body: unknown): Result<FocusRequest> {
+  if (!isObj(body)) return { ok: false, error: 'body must be an object' };
+  if (!isHost(body.host)) return { ok: false, error: 'invalid host' };
+  if (typeof body.sessionId !== 'string' || !SESSION_RE.test(body.sessionId)) return { ok: false, error: 'invalid sessionId' };
+  return { ok: true, value: { host: body.host, sessionId: body.sessionId } };
 }

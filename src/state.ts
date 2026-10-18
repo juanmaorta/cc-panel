@@ -58,7 +58,15 @@ function transition(ev: HubEvent): Transition | null {
 function touchHost(store: Store, host: string, ts: number): Store['hosts'] {
   const prev = store.hosts[host];
   if (prev && prev.lastSeenAt >= ts) return store.hosts;
-  return { ...store.hosts, [host]: { host, lastSeenAt: ts } };
+  return { ...store.hosts, [host]: { ...prev, host, lastSeenAt: ts } };
+}
+
+/** A relay poll proves both the host and its cmux relay are alive. */
+export function applyRelaySeen(store: Store, host: string, ts: number): Store {
+  const hosts = touchHost(store, host, ts);
+  const h = hosts[host]!;
+  if ((h.relaySeenAt ?? 0) >= ts) return { ...store, hosts };
+  return { ...store, hosts: { ...hosts, [host]: { ...h, relaySeenAt: ts } } };
 }
 
 export function applyEvent(store: Store, ev: HubEvent): Store {
@@ -82,6 +90,8 @@ export function applyEvent(store: Store, ev: HubEvent): Store {
   };
   const detail = t ? t.detail : prev?.detail;
   if (detail !== undefined) next.detail = detail;
+  const cmux = ev.cmux ?? prev?.cmux;
+  if (cmux) next.cmux = cmux;
 
   return { sessions: { ...store.sessions, [key]: next }, hosts };
 }
@@ -96,7 +106,11 @@ export function applyHeartbeat(store: Store, hb: Heartbeat): Store {
 export interface ViewOptions {
   hostTtlMs: number;
   sessionWindowMs: number;
+  /** How long after its last poll a relay still counts as connected. */
+  relayTtlMs?: number;
 }
+
+const DEFAULT_RELAY_TTL_MS = 60_000;
 
 export function buildView(store: Store, now: number, opts: ViewOptions): View {
   const online = (host: string) => {
@@ -104,13 +118,24 @@ export function buildView(store: Store, now: number, opts: ViewOptions): View {
     return h !== undefined && now - h.lastSeenAt <= opts.hostTtlMs;
   };
 
+  const relayTtl = opts.relayTtlMs ?? DEFAULT_RELAY_TTL_MS;
+  const relay = (host: string) => {
+    const seen = store.hosts[host]?.relaySeenAt;
+    return seen !== undefined && now - seen <= relayTtl;
+  };
+
   const hosts = Object.values(store.hosts)
-    .map((h) => ({ ...h, online: online(h.host) }))
+    .map((h) => ({ ...h, online: online(h.host), relay: relay(h.host) }))
     .sort((a, b) => a.host.localeCompare(b.host));
 
   const sessions = Object.values(store.sessions)
     .filter((s) => s.status !== 'ended' && now - s.lastEventAt <= opts.sessionWindowMs)
-    .map((s) => ({ ...s, project: basename(s.cwd) || s.cwd, hostOnline: online(s.host) }))
+    .map((s) => ({
+      ...s,
+      project: basename(s.cwd) || s.cwd,
+      hostOnline: online(s.host),
+      canFocus: s.cmux !== undefined && online(s.host) && relay(s.host),
+    }))
     .sort((a, b) => URGENCY[a.status] - URGENCY[b.status] || b.lastEventAt - a.lastEventAt);
 
   return { generatedAt: now, hosts, sessions, limits: store.limits ? effectiveLimits(store.limits, now) : null };

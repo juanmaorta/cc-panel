@@ -38,7 +38,7 @@ function readLimits() {
 async function main(mode: string | undefined): Promise<void> {
   const config = loadConfig();
   if (mode === 'event') {
-    const ev = toHubEvent(JSON.parse(await text(process.stdin)), config.host, Date.now());
+    const ev = toHubEvent(JSON.parse(await text(process.stdin)), config.host, Date.now(), process.env);
     if (ev) await post(config.hubUrl, config.token, '/api/events', ev, TIMEOUT_MS);
     return;
   }

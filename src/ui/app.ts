@@ -8,6 +8,8 @@ import { nextTheme, parseStored, resolveTheme } from './theme.ts';
 
 const POLL_MS = 2000;
 const CLOCK_MS = 10_000;
+/** How long a clicked tile stays inverted, like a classic Mac button press. */
+const PRESS_MS = 180;
 /** A visual beep inverts the screen for about one frame, like the classic Mac. */
 const BEEP_MS = 160;
 const STEP_MS = 100;
@@ -111,7 +113,11 @@ function renderLimit(id: string, l: LimitState | null): void {
 function renderMenu(v: View): void {
   const m = menuState(v);
   $('hosts').replaceChildren(
-    ...m.hosts.map((h) => el('span', `host${h.online ? ' online' : ''}`, `${h.online ? '●' : '○'} ${h.host}`)),
+    ...m.hosts.map((h) => {
+      const n = el('span', `host${h.online ? ' online' : ''}`, `${h.online ? '●' : '○'} ${h.host}${h.relay ? ' ⌘' : ''}`);
+      n.title = h.relay ? 'relay de cmux conectado: clic en una tarjeta para ir a su pestaña' : 'sin relay de cmux';
+      return n;
+    }),
   );
   renderLimit('l5', m.fiveHour);
   renderLimit('l7', m.sevenDay);
@@ -164,6 +170,12 @@ function createTile(s: SessionView): Tile {
   floor.height = FLOOR_H;
   floor.style.height = `${FLOOR_H * FLOOR_SCALE}px`;
   root.append(titlebar, text, floor);
+  root.addEventListener('click', () => void focusTile(root));
+  root.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    void focusTile(root);
+  });
   return { session: s, el: root, project, status, meta, floor, ctx: floor.getContext('2d')!, cat: initialCat(s.sessionId, 64), colors: { ink: '#000', paper: '#fff' } };
 }
 
@@ -199,7 +211,16 @@ function renderTiles(v: View): void {
       tiles.set(key, t);
     }
     t.session = s;
-    const cls = `tile s-${s.status}${s.hostOnline ? '' : ' offline'}`;
+    const cls = `tile s-${s.status}${s.hostOnline ? '' : ' offline'}${s.canFocus ? ' clickable' : ''}`;
+    if (s.canFocus) {
+      t.el.tabIndex = 0;
+      t.el.setAttribute('role', 'button');
+      t.el.setAttribute('aria-label', `Ir a la pestaña de ${s.project} en cmux`);
+    } else {
+      t.el.removeAttribute('tabindex');
+      t.el.removeAttribute('role');
+      t.el.removeAttribute('aria-label');
+    }
     if (t.el.className !== cls || !t.el.isConnected) {
       t.el.className = cls;
       grid.append(t.el);
@@ -243,6 +264,23 @@ $('theme').addEventListener('click', () => {
   refreshColors();
 });
 darkQuery.addEventListener('change', refreshColors);
+
+async function focusTile(el: HTMLElement): Promise<void> {
+  const t = [...tiles.values()].find((x) => x.el === el);
+  if (!t?.session.canFocus || !token) return;
+  el.classList.add('pressed');
+  setTimeout(() => el.classList.remove('pressed'), PRESS_MS);
+  try {
+    const res = await fetch('/api/focus', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ host: t.session.host, sessionId: t.session.sessionId }),
+    });
+    if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? `HTTP ${res.status}`);
+  } catch (e) {
+    $('error').textContent = `No se pudo ir a la pestaña: ${e instanceof Error ? e.message : String(e)}`;
+  }
+}
 
 let pointer: { x: number; at: number } | null = null;
 const trackPointer = (e: PointerEvent) => {
