@@ -41,21 +41,29 @@ Original pixel art in the spirit of Doom's status bar (no id Software assets), r
 | Keys | red = something needs you, yellow = new result, blue = working |
 | Table | count per state |
 
-Above the bar, one touch-friendly tile per session. Each tile has a floor where a pixel cat
-lives, in homage to Neko (original art, not the original sprites):
+Above the bar, one touch-friendly tile per session. Each tile has a floor where Neko lives:
 
 | Cat | Status |
 |---|---|
 | runs back and forth | working |
 | curled up asleep, Z | idle (and everyone on an offline host) |
-| sits facing you, ears up, red `!` | waiting |
+| startled, staring at you, red `!` | waiting |
 | washes its face, yellow sparkle | done |
-| hisses, fur up, red eyes, `!` | error |
+| scratches an itch, orange `!` | error |
 
 Move the pointer or touch the screen and the cats chase it, each one confined to its own
 floor, for a few seconds. Cats that need you do not chase: the alarm stays put.
 Cat behaviour lives in `src/ui/neko-logic.ts` (pure, tested); tiles are reconciled by key
 instead of rebuilt on every poll, so cats keep their position.
+
+The cat sprites are oneko's 32×32 bitmaps, public domain per Debian's `debian/copyright`
+for oneko. Art lineage: NEKO.COM (Naoshi Watanabe), NekoDA (Kenji Gotoh), xneko
+(Masayuki Koba), oneko (Tatsuya Kato). `src/ui/neko-sprites.ts` is generated:
+
+```sh
+git clone https://github.com/tie/oneko /tmp/oneko
+python3 -I scripts/gen-neko-sprites.py /tmp/oneko > src/ui/neko-sprites.ts
+```
 
 The previous isometric room view is preserved at tag `v0.2-room`.
 

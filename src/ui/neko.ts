@@ -6,7 +6,7 @@ import { px, smallText, sprite, type Ctx } from './pixel.ts';
 /** Native height of a tile's floor: the cat plus a ground line. */
 export const FLOOR_H = CAT_H + 2;
 /** CSS pixels per native pixel. */
-export const FLOOR_SCALE = 5;
+export const FLOOR_SCALE = 3;
 
 const GROUND: Record<SessionStatus, string> = {
   waiting: '#e02424',
@@ -37,7 +37,7 @@ export function drawFloor(ctx: Ctx, width: number, cat: Cat, status: SessionStat
     case 'alert':
       bubble(ctx, side, '!', '#e02424');
       break;
-    case 'hiss':
+    case 'scratch':
       bubble(ctx, side, '!', '#ff5a1f');
       break;
     case 'sleep': {

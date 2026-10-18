@@ -1,10 +1,10 @@
 import type { SessionStatus } from '../types.ts';
 
 /** Native pixels. */
-export const CAT_W = 16;
+export const CAT_W = 32;
 export const SPEED = 2;
 
-export type CatMode = 'sleep' | 'run' | 'sit' | 'wash' | 'alert' | 'hiss';
+export type CatMode = 'sleep' | 'run' | 'sit' | 'wash' | 'alert' | 'scratch';
 
 export interface Cat {
   x: number;
@@ -45,7 +45,7 @@ export function stepCat(cat: Cat, i: CatInput): Cat {
   if (!i.hostOnline) return { ...cat, x, mode: 'sleep' };
   // The alarm must stay where you left it: no chasing for cats that need you.
   if (i.status === 'waiting') return { ...cat, x, mode: 'alert' };
-  if (i.status === 'error') return { ...cat, x, mode: 'hiss' };
+  if (i.status === 'error') return { ...cat, x, mode: 'scratch' };
 
   if (i.target !== null) {
     const goal = clamp(Math.round(i.target - CAT_W / 2), max);

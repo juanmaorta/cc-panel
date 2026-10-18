@@ -35,7 +35,7 @@ test('status poses when nobody is pointing', () => {
   assert.equal(stepCat(cat(), input({ status: 'idle' })).mode, 'sleep');
   assert.equal(stepCat(cat(), input({ status: 'done' })).mode, 'wash');
   assert.equal(stepCat(cat(), input({ status: 'waiting' })).mode, 'alert');
-  assert.equal(stepCat(cat(), input({ status: 'error' })).mode, 'hiss');
+  assert.equal(stepCat(cat(), input({ status: 'error' })).mode, 'scratch');
   assert.equal(stepCat(cat(), input({ status: 'working', hostOnline: false })).mode, 'sleep');
 });
 
