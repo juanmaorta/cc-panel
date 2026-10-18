@@ -28,6 +28,8 @@ export interface HubOptions {
   saveDebounceMs: number;
   /** How long a relay long-poll is held open before answering 204. */
   relayWaitMs?: number;
+  /** Shown in the UI when a host has cmux sessions but no relay. */
+  relayCommand?: string;
   now?: () => number;
   log?: (msg: string) => void;
 }
@@ -218,7 +220,8 @@ export function createHub(opts: HubOptions): Hub {
       return;
     }
     if (req.method === 'GET' && path === '/api/state') {
-      send(res, 200, buildView(store, now(), opts.view));
+      const view = buildView(store, now(), opts.view);
+      send(res, 200, opts.relayCommand ? { ...view, relayCommand: opts.relayCommand } : view);
       return;
     }
     if (req.method === 'POST' && path === '/api/events') {

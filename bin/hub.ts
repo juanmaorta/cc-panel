@@ -1,3 +1,4 @@
+import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../src/config.ts';
 import { createHub } from '../src/hub.ts';
@@ -10,6 +11,7 @@ const hub = createHub({
   token: config.token,
   publicDir: fileURLToPath(new URL('../public/', import.meta.url)),
   uiDir: fileURLToPath(new URL('../src/ui/', import.meta.url)),
+  relayCommand: `cd ${fileURLToPath(new URL('..', import.meta.url)).replace(/\/$/, '').replace(homedir(), '~')} && npm run relay`,
   stateFile: config.hub.stateFile,
   view: { hostTtlMs: 3 * MIN, sessionWindowMs: 24 * HOUR },
   retentionMs: 48 * HOUR,

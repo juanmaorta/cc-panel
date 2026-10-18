@@ -121,6 +121,10 @@ The relay long-polls the hub (`GET /api/relay/next`) and, for each click, runs e
 `execFile` with no shell and only validated UUIDs. It can switch tabs; it cannot type into
 them. cmux's socket mode stays at its default (`cmuxOnly`).
 
+While some cmux sessions cannot be focused because their host has no relay, the panel
+shows the exact command to run (built from the hub's own checkout path) with Copy and
+Hide buttons.
+
 A tile is clickable only when its session runs in cmux and that host's relay polled in the
 last minute; the menu bar shows `⌘` next to hosts with a live relay. Clicks older than
 10 s are dropped.

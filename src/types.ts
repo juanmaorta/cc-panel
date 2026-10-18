@@ -101,6 +101,8 @@ export interface View {
   hosts: HostView[];
   sessions: SessionView[];
   limits: Limits | null;
+  /** Shell command to start the cmux relay on the hub's machine, shown as a hint. */
+  relayCommand?: string;
 }
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: string };

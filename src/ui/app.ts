@@ -1,5 +1,6 @@
 import type { SessionView, View } from '../types.ts';
 import { flashFor, menuState, type Flash, type LimitState } from './menubar-logic.ts';
+import { hostsNeedingRelay } from './relay-hint.ts';
 import { initialCat, stepCat, type Cat, type CatMode } from './neko-logic.ts';
 import { CAT_H, catFrame } from './neko-sprites.ts';
 import { FLOOR_H, FLOOR_SCALE, catColors, drawFloor, type Ink } from './neko.ts';
@@ -134,6 +135,35 @@ function renderMenu(v: View): void {
 function drawMenuCat(): void {
   menuCatCtx.clearRect(0, 0, CAT_H, CAT_H);
   sprite(menuCatCtx, catFrame(mood, 1, Math.floor(step / CAT_FRAME_STEPS)), catColors(menuColors), 0, 0);
+}
+
+const HINT_HIDDEN_KEY = 'cc-panel-relay-hint-hidden';
+const hint = $('relayhint');
+const copyBtn = hint.querySelector<HTMLButtonElement>('.copy')!;
+// Clipboard needs a secure context (localhost is; plain http over the LAN is not).
+copyBtn.hidden = !window.isSecureContext || !navigator.clipboard;
+copyBtn.addEventListener('click', () => {
+  const cmd = hint.querySelector('.cmd')!.textContent ?? '';
+  navigator.clipboard.writeText(cmd).then(
+    () => {
+      copyBtn.textContent = 'Copiado';
+      setTimeout(() => (copyBtn.textContent = 'Copiar'), 1500);
+    },
+    () => (copyBtn.textContent = 'No se pudo copiar'),
+  );
+});
+hint.querySelector('.hide')!.addEventListener('click', () => {
+  store.set(HINT_HIDDEN_KEY, '1');
+  hint.hidden = true;
+});
+
+/** Shown only while some cmux sessions cannot be focused because their host has no relay. */
+function renderRelayHint(v: View): void {
+  const hosts = hostsNeedingRelay(v);
+  hint.hidden = hosts.length === 0 || !v.relayCommand || store.get(HINT_HIDDEN_KEY) === '1';
+  if (hint.hidden) return;
+  hint.querySelector('.hosts')!.textContent = hosts.join(', ');
+  hint.querySelector('.cmd')!.textContent = v.relayCommand ?? '';
 }
 
 function renderClock(): void {
@@ -325,6 +355,7 @@ async function tick(): Promise<void> {
     view = next;
     renderTiles(next);
     renderMenu(next);
+    renderRelayHint(next);
     if (f) flash(f);
     const waiting = next.sessions.filter((s) => s.hostOnline && (s.status === 'waiting' || s.status === 'error')).length;
     document.title = waiting ? `(${waiting}) cc-panel` : 'cc-panel';

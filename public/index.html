@@ -95,6 +95,18 @@
     background: repeating-conic-gradient(var(--bg) 0 25%, transparent 0 50%) 0 0 / 2px 2px; }
   .tile.offline .titlebar { animation: none; }
 
+  /* Classic Mac alert: double frame. */
+  #relayhint {
+    max-width: 760px; margin: 4px auto 20px; padding: 12px 16px;
+    border: 2px solid var(--ink); box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--ink);
+  }
+  #relayhint p { margin: 0 0 8px; }
+  #relayhint .cmd { display: block; padding: 6px 8px; border: 1px solid var(--ink); font-family: inherit;
+    user-select: all; overflow-wrap: anywhere; }
+  #relayhint .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
+  #relayhint button { font: inherit; color: var(--ink); background: var(--bg); border: 2px solid var(--ink);
+    border-radius: 8px; min-height: 32px; padding: 0 14px; cursor: pointer; }
+  #relayhint button:focus-visible { outline: 2px dotted var(--ink); outline-offset: 2px; }
   .empty { font-size: 18px; text-align: center; margin-top: 15vh; }
   #login { max-width: 420px; margin: 15vh auto 0; text-align: center; }
   #login input { width: 100%; padding: 8px; font: inherit; background: var(--bg); color: var(--ink);
@@ -127,6 +139,12 @@
     <p>Introduce el token del hub</p>
     <input name="token" type="password" autocomplete="off" required>
   </form>
+  <section id="relayhint" hidden aria-live="polite">
+    <p>Para saltar a la pestaña de una sesión con un clic, abre una pestaña de cmux en
+      <b class="hosts"></b> y deja corriendo:</p>
+    <code class="cmd"></code>
+    <div class="actions"><button type="button" class="copy">Copiar</button><button type="button" class="hide">Ocultar</button></div>
+  </section>
   <div id="sessions"></div>
 </main>
 <script type="module" src="/ui/app.ts"></script>

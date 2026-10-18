@@ -21,6 +21,7 @@ const hub = createHub({
   retentionMs: 172_800_000,
   saveDebounceMs: 0,
   relayWaitMs: 150,
+  relayCommand: 'cd ~/cc-panel && npm run relay',
 });
 await new Promise<void>((r) => hub.server.listen(0, '127.0.0.1', r));
 const base = `http://127.0.0.1:${(hub.server.address() as AddressInfo).port}`;
@@ -88,4 +89,9 @@ test('focus rejects unknown sessions, sessions outside cmux and bad bodies', asy
   assert.equal((await post('/api/focus', { host: 'laptop', sessionId: 'nope' })).status, 404);
   assert.equal((await post('/api/focus', { host: 'laptop', sessionId: 'plain' })).status, 409);
   assert.equal((await post('/api/focus', { host: 'a b', sessionId: 'x' })).status, 400);
+});
+
+test('the state view carries the relay command the hub was configured with', async () => {
+  const v = (await (await fetch(base + '/api/state', { headers: auth })).json()) as View;
+  assert.equal(v.relayCommand, 'cd ~/cc-panel && npm run relay');
 });
