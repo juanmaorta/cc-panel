@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { barState, flashFor, healthTier, sessionFace } from '../src/ui/doom-logic.ts';
+import { barState, flashFor, healthTier } from '../src/ui/doom-logic.ts';
 import type { SessionStatus, SessionView, View } from '../src/types.ts';
 
 function s(id: string, status: SessionStatus, host = 'laptop', hostOnline = true): SessionView {
@@ -80,11 +80,6 @@ test('bar: arms = up to 6 host slots, lit when online', () => {
     { slot: 5, host: null, online: false },
     { slot: 6, host: null, online: false },
   ]);
-});
-
-test('session face uses its own status and the global damage tier', () => {
-  assert.deepEqual(sessionFace(s('a', 'done'), 2), { expression: 'done', tier: 2 });
-  assert.deepEqual(sessionFace(s('a', 'working', 'desktop', false), 0), { expression: 'idle', tier: 0 });
 });
 
 test('flash: pain when a session starts waiting or fails, pickup when one finishes', () => {

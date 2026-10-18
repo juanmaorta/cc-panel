@@ -126,10 +126,3 @@ export function drawBar(ctx: Ctx, s: BarState, frame: number): void {
     small(ctx, v, 316 - smallWidth(v), y, n > 0 ? C.yellow : C.dim);
   });
 }
-
-/** A single face on its own canvas (session tiles). */
-export function drawFaceTile(ctx: Ctx, face: Face, frame: number): void {
-  ctx.imageSmoothingEnabled = false;
-  ctx.clearRect(0, 0, FACE_W, FACE_H);
-  drawFace(ctx, face, frame, 0, 0);
-}

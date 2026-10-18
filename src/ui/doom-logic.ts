@@ -1,4 +1,4 @@
-import type { SessionStatus, SessionView, View } from '../types.ts';
+import type { SessionStatus, View } from '../types.ts';
 
 export type Expression = 'idle' | 'working' | 'waiting' | 'done' | 'error' | 'dead';
 export type Tier = 0 | 1 | 2 | 3 | 4;
@@ -42,11 +42,6 @@ const left = (usedPct: number | undefined) => (usedPct === undefined ? null : Ma
 
 /** Sessions on an offline host keep their last status but must not drive alerts. */
 const live = (v: View) => v.sessions.filter((x) => x.hostOnline);
-
-export function sessionFace(s: SessionView, tier: Tier): Face {
-  if (!s.hostOnline || s.status === 'ended') return { expression: 'idle', tier };
-  return { expression: s.status, tier };
-}
 
 export function barState(v: View): BarState {
   const health = left(v.limits?.fiveHour?.usedPct);

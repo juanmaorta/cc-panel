@@ -1,12 +1,15 @@
 import type { SessionView, View } from '../types.ts';
-import { barState, flashFor, healthTier, sessionFace, type Flash } from './doom-logic.ts';
-import { drawRooms, roomLayout } from './room.ts';
-import { buildRooms, urgentKey } from './room-logic.ts';
-import { FACE_H, FACE_W } from './sprites.ts';
-import { BAR_H, BAR_W, drawBar, drawFaceTile } from './statusbar.ts';
+import { barState, flashFor, type Flash } from './doom-logic.ts';
+import { initialCat, stepCat, type Cat } from './neko-logic.ts';
+import { FLOOR_H, FLOOR_SCALE, drawFloor } from './neko.ts';
+import { BAR_H, BAR_W, drawBar } from './statusbar.ts';
 
 const POLL_MS = 2000;
 const FRAME_MS = 1200;
+const STEP_MS = 100;
+const CAT_FRAME_STEPS = 3;
+/** How long cats keep chasing after the last pointer movement. */
+const CHASE_MS = 4000;
 const LABEL: Record<SessionView['status'], string> = {
   waiting: 'TE ESPERA',
   error: 'ERROR',
@@ -58,13 +61,6 @@ bar.width = BAR_W;
 bar.height = BAR_H;
 const barCtx = bar.getContext('2d')!;
 
-const roomCanvas = $<HTMLCanvasElement>('room');
-const roomCtx = roomCanvas.getContext('2d')!;
-const main = $('main');
-
-type Mode = 'room' | 'tiles';
-let mode: Mode = store.get('cc-panel-mode') === 'tiles' ? 'tiles' : 'room';
-
 let view: View | null = null;
 let frame = 0;
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -93,62 +89,108 @@ function flash(kind: Flash): void {
   f.className = kind;
 }
 
-function paintRoom(v: View): void {
-  const rooms = buildRooms(v);
-  const layout = roomLayout(rooms.length, main.clientWidth, main.clientHeight);
-  if (roomCanvas.width !== layout.width || roomCanvas.height !== layout.height) {
-    roomCanvas.width = layout.width;
-    roomCanvas.height = layout.height;
-  }
-  roomCanvas.style.width = `${layout.width * layout.scale}px`;
-  roomCanvas.style.height = `${layout.height * layout.scale}px`;
-  drawRooms(roomCtx, rooms, layout, urgentKey(v), frame);
+function paintBar(): void {
+  if (view) drawBar(barCtx, barState(view), frame);
 }
 
-function applyMode(): void {
-  main.className = `${mode}-mode`;
-  $('mode').textContent = mode === 'room' ? 'LISTA' : 'SALA';
+interface Tile {
+  session: SessionView;
+  el: HTMLElement;
+  project: HTMLElement;
+  status: HTMLElement;
+  meta: HTMLElement;
+  floor: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
+  cat: Cat;
 }
 
-function paintFaces(): void {
-  if (!view) return;
-  const state = barState(view);
-  drawBar(barCtx, state, frame);
-  if (mode === 'room') {
-    paintRoom(view);
-    return;
+const tiles = new Map<string, Tile>();
+const keyOf = (s: SessionView) => `${s.host}/${s.sessionId}`;
+
+function createTile(s: SessionView): Tile {
+  const root = el('article', 'tile');
+  const text = el('div', 'info');
+  const project = el('div', 'project');
+  const status = el('div', 'status');
+  const meta = el('div', 'meta');
+  text.append(project, status, meta);
+  const floor = el('canvas', 'floor');
+  floor.height = FLOOR_H;
+  floor.style.height = `${FLOOR_H * FLOOR_SCALE}px`;
+  root.append(text, floor);
+  return { session: s, el: root, project, status, meta, floor, ctx: floor.getContext('2d')!, cat: initialCat(s.sessionId, 64) };
+}
+
+/** Keeps the floor at an integer scale; returns its native width. */
+function fitFloor(t: Tile): number {
+  const native = Math.max(1, Math.floor(t.el.clientWidth / FLOOR_SCALE) - 2);
+  if (t.floor.width !== native) {
+    t.floor.width = native;
+    t.floor.style.width = `${native * FLOOR_SCALE}px`;
   }
-  const tier = healthTier(state.health);
-  document.querySelectorAll<HTMLCanvasElement>('canvas.face').forEach((c, i) => {
-    const s = view?.sessions[i];
-    if (s) drawFaceTile(c.getContext('2d')!, state.face.expression === 'dead' ? state.face : sessionFace(s, tier), frame);
-  });
+  return native;
 }
 
 function renderTiles(v: View): void {
   const multiHost = v.hosts.length > 1;
   const grid = $('sessions');
+  const empty = grid.querySelector('.empty');
   if (v.sessions.length === 0) {
-    grid.replaceChildren(el('p', 'empty', 'NADA QUE MATAR. SIN SESIONES EN 24 H.'));
+    tiles.forEach((t) => t.el.remove());
+    tiles.clear();
+    if (!empty) grid.append(el('p', 'empty', 'NADA QUE HACER. SIN SESIONES EN 24 H.'));
     return;
   }
-  grid.replaceChildren(
-    ...v.sessions.map((s) => {
-      const tile = el('article', `tile s-${s.status}${s.hostOnline ? '' : ' offline'}`);
-      tile.title = `${s.cwd}\n${s.host} · ${s.sessionId}`;
-      const face = el('canvas', 'face');
-      face.width = FACE_W;
-      face.height = FACE_H;
-      const info = el('div', 'info');
-      info.append(
-        el('div', 'project', s.project),
-        el('div', 'status', [LABEL[s.status], detailLabel(s.detail)].filter(Boolean).join(' · ')),
-        el('div', 'meta', [age(v.generatedAt - s.since), multiHost ? s.host : null, s.hostOnline ? null : 'OFFLINE'].filter(Boolean).join(' · ')),
-      );
-      tile.append(face, info);
-      return tile;
-    }),
-  );
+  empty?.remove();
+
+  const live = new Set<string>();
+  for (const s of v.sessions) {
+    const key = keyOf(s);
+    live.add(key);
+    let t = tiles.get(key);
+    if (!t) {
+      t = createTile(s);
+      tiles.set(key, t);
+    }
+    t.session = s;
+    t.el.className = `tile s-${s.status}${s.hostOnline ? '' : ' offline'}`;
+    t.el.title = `${s.cwd}\n${s.host} · ${s.sessionId}`;
+    t.project.textContent = s.project;
+    t.status.textContent = [LABEL[s.status], detailLabel(s.detail)].filter(Boolean).join(' · ');
+    t.meta.textContent = [age(v.generatedAt - s.since), multiHost ? s.host : null, s.hostOnline ? null : 'OFFLINE']
+      .filter(Boolean)
+      .join(' · ');
+    grid.append(t.el); // append moves existing nodes: keeps view order without rebuilding
+  }
+  for (const [key, t] of tiles) {
+    if (!live.has(key)) {
+      t.el.remove();
+      tiles.delete(key);
+    }
+  }
+}
+
+let pointer: { x: number; at: number } | null = null;
+const trackPointer = (e: PointerEvent) => {
+  pointer = { x: e.clientX, at: Date.now() };
+};
+addEventListener('pointermove', trackPointer);
+addEventListener('pointerdown', trackPointer);
+
+let step = 0;
+function animateCats(): void {
+  const chasing = pointer && Date.now() - pointer.at < CHASE_MS ? pointer.x : null;
+  const moving = !reducedMotion.matches;
+  if (moving) step++;
+  const catFrame = Math.floor(step / CAT_FRAME_STEPS);
+  for (const t of tiles.values()) {
+    const width = fitFloor(t);
+    const left = t.floor.getBoundingClientRect().left;
+    const target = moving && chasing !== null ? (chasing - left) / FLOOR_SCALE : null;
+    const next = stepCat(t.cat, { status: t.session.status, hostOnline: t.session.hostOnline, width, target });
+    t.cat = moving ? next : { ...next, x: t.cat.x };
+    drawFloor(t.ctx, width, t.cat, t.session.status, catFrame);
+  }
 }
 
 async function tick(): Promise<void> {
@@ -171,7 +213,7 @@ async function tick(): Promise<void> {
     const f = flashFor(view, next);
     view = next;
     renderTiles(next);
-    paintFaces();
+    paintBar();
     if (f) flash(f);
     const waiting = next.sessions.filter((s) => s.hostOnline && (s.status === 'waiting' || s.status === 'error')).length;
     document.title = waiting ? `(${waiting}) cc-panel` : 'cc-panel';
@@ -190,15 +232,6 @@ $<HTMLFormElement>('login').addEventListener('submit', (e) => {
   void tick();
 });
 
-$('mode').addEventListener('click', () => {
-  mode = mode === 'room' ? 'tiles' : 'room';
-  store.set('cc-panel-mode', mode);
-  applyMode();
-  paintFaces();
-});
-addEventListener('resize', paintFaces);
-
-applyMode();
 void tick();
 setInterval(() => {
   if (token) void tick();
@@ -206,5 +239,6 @@ setInterval(() => {
 setInterval(() => {
   if (reducedMotion.matches) return;
   frame++;
-  paintFaces();
+  paintBar();
 }, FRAME_MS);
+setInterval(animateCats, STEP_MS);
