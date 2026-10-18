@@ -229,3 +229,29 @@ test('sessions remember which agent runs them', () => {
   const s = run([ev('SessionStart', T0, { agent: 'codex' }), ev('Stop', T0 + 1)]);
   assert.equal(s.sessions[sessionKey('laptop', 's1')]?.agent, 'codex');
 });
+
+test('Codex sessions drop any cmux tab, even one stored before the fix', () => {
+  let s = run([ev('Stop', T0, { agent: 'codex' })]);
+  s.sessions[sessionKey('laptop', 's1')]!.cmux = CMUX; // as persisted by the buggy version
+  s = applyEvent(s, ev('UserPromptSubmit', T0 + 1, { agent: 'codex', cmux: CMUX }));
+  assert.equal(s.sessions[sessionKey('laptop', 's1')]?.cmux, undefined);
+});
+
+test('view hides quiet Codex sessions (no SessionEnd in Codex 0.163), never the waiting ones', () => {
+  const opts = { ...viewOpts, codexQuietMs: 30 * MIN };
+  const s = run([
+    ev('Stop', T0, { sessionId: 'codex-done', agent: 'codex' }),
+    ev('PermissionRequest', T0, { sessionId: 'codex-waiting', agent: 'codex' }),
+    ev('Stop', T0, { sessionId: 'claude-done', agent: 'claude' }),
+  ]);
+  const at = (t: number) => buildView(s, t, opts).sessions.map((x) => x.sessionId).sort();
+  assert.deepEqual(at(T0 + 29 * MIN), ['claude-done', 'codex-done', 'codex-waiting']);
+  assert.deepEqual(at(T0 + 31 * MIN), ['claude-done', 'codex-waiting']);
+});
+
+test('a Codex session is never focusable, even with a stale cmux tab in the store', () => {
+  let s = run([ev('Stop', T0, { agent: 'codex' })]);
+  s.sessions[sessionKey('laptop', 's1')]!.cmux = CMUX;
+  s = applyRelaySeen(s, 'laptop', T0);
+  assert.equal(buildView(s, T0, { ...viewOpts, relayTtlMs: MIN }).sessions[0]?.canFocus, false);
+});

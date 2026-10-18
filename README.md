@@ -122,15 +122,19 @@ When `~/.codex` exists, the installer merges its hooks there too (backup kept, o
 untouched) and reports those sessions as `agent: codex`; tiles show `codex` underneath.
 Codex asks you to trust new hooks once.
 
-Differences with Claude Code:
+Codex runs its agent in a background daemon (`codex app-server --managed-daemon`) that
+outlives the terminal UIs, and hooks are executed by that daemon. Consequences:
 
 | | Claude Code | Codex 0.163 |
 |---|---|---|
 | waiting | permission, AskUserQuestion, ExitPlanMode, notifications | permission requests |
-| session end | `SessionEnd` hides the tile | no such event yet: the tile stays until the 24 h window |
+| session end | `SessionEnd` hides the tile | no such event yet: done/idle Codex tiles hide after 30 min without events (waiting ones never do) |
 | `Interrupt` (Esc) | — | back to idle |
-| title | session title via statusline | folder name |
-| cmux click-to-focus | yes | yes (same env vars) |
+| title | session title via statusline | thread title from `~/.codex/session_index.jsonl` |
+| cmux click-to-focus | yes | no: the hook's env is the daemon's, so its cmux tab is not the session's |
+
+Neither the daemon PID nor `~/.codex/thread-writer-locks/*.lock` tell whether a terminal
+still has the session open (the daemon keeps both after the UI closes).
 
 ## Click a tile to jump to its cmux tab
 

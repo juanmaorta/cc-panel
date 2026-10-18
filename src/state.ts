@@ -92,12 +92,13 @@ export function applyEvent(store: Store, ev: HubEvent): Store {
   };
   const detail = t ? t.detail : prev?.detail;
   if (detail !== undefined) next.detail = detail;
-  const cmux = ev.cmux ?? prev?.cmux;
-  if (cmux) next.cmux = cmux;
   const name = ev.name ?? prev?.name;
   if (name) next.name = name;
   const agent = ev.agent ?? prev?.agent;
   if (agent) next.agent = agent;
+  // Codex hooks run in its daemon, so any cmux tab they carry is the daemon's, not the session's.
+  const cmux = agent === 'codex' ? undefined : (ev.cmux ?? prev?.cmux);
+  if (cmux) next.cmux = cmux;
 
   return { ...store, sessions: { ...store.sessions, [key]: next }, hosts };
 }
@@ -114,7 +115,14 @@ export interface ViewOptions {
   sessionWindowMs: number;
   /** How long after its last poll a relay still counts as connected. */
   relayTtlMs?: number;
+  /**
+   * Codex 0.163 has no SessionEnd: a Codex session that is done/idle and silent for this
+   * long is hidden (it comes back with its next event). Waiting ones always stay.
+   */
+  codexQuietMs?: number;
 }
+
+const DEFAULT_CODEX_QUIET_MS = 30 * 60_000;
 
 const DEFAULT_RELAY_TTL_MS = 60_000;
 
@@ -136,11 +144,17 @@ export function buildView(store: Store, now: number, opts: ViewOptions): View {
 
   const sessions = Object.values(store.sessions)
     .filter((s) => s.status !== 'ended' && now - s.lastEventAt <= opts.sessionWindowMs)
+    .filter(
+      (s) =>
+        s.agent !== 'codex' ||
+        !(s.status === 'done' || s.status === 'idle') ||
+        now - s.lastEventAt <= (opts.codexQuietMs ?? DEFAULT_CODEX_QUIET_MS),
+    )
     .map((s) => ({
       ...s,
       project: basename(s.cwd) || s.cwd,
       hostOnline: online(s.host),
-      canFocus: s.cmux !== undefined && online(s.host) && relay(s.host),
+      canFocus: s.cmux !== undefined && s.agent !== 'codex' && online(s.host) && relay(s.host),
     }))
     .sort((a, b) => URGENCY[a.status] - URGENCY[b.status] || b.lastEventAt - a.lastEventAt);
 

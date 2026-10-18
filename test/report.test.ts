@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, utimesSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { pruneSessionCaptures, readSessionName, sessionNameFrom, toHubEvent } from '../src/report.ts';
+import { pruneSessionCaptures, readCodexThreadName, readSessionName, sessionNameFrom, toHubEvent } from '../src/report.ts';
 
 const base = { session_id: 'abc-123', cwd: '/Users/j/p', transcript_path: '/t.jsonl' };
 
@@ -99,4 +99,31 @@ test('tags the agent; Claude is the default', () => {
 
 test('maps Codex-only events', () => {
   assert.equal(toHubEvent({ ...base, hook_event_name: 'Interrupt' }, 'laptop', 1, { agent: 'codex' })?.event, 'Interrupt');
+});
+
+test('Codex events never carry a cmux tab: their hooks run in the Codex daemon, not the terminal', () => {
+  const ev = toHubEvent({ ...base, hook_event_name: 'Stop' }, 'laptop', 1, {
+    agent: 'codex',
+    env: { CMUX_WORKSPACE_ID: WS, CMUX_SURFACE_ID: SURF },
+  });
+  assert.equal(ev?.cmux, undefined);
+});
+
+test('readCodexThreadName: last index line for the session wins', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cc-panel-codex-'));
+  const file = join(dir, 'session_index.jsonl');
+  writeFileSync(
+    file,
+    [
+      JSON.stringify({ id: 'aaa', thread_name: 'Primero', updated_at: '1' }),
+      JSON.stringify({ id: 'bbb', thread_name: 'Otra', updated_at: '2' }),
+      '{broken',
+      JSON.stringify({ id: 'aaa', thread_name: '  Renombrada  ', updated_at: '3' }),
+      '',
+    ].join('\n'),
+  );
+  assert.equal(readCodexThreadName(file, 'aaa'), 'Renombrada');
+  assert.equal(readCodexThreadName(file, 'bbb'), 'Otra');
+  assert.equal(readCodexThreadName(file, 'zzz'), undefined);
+  assert.equal(readCodexThreadName(join(dir, 'missing.jsonl'), 'aaa'), undefined);
 });

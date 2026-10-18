@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { text } from 'node:stream/consumers';
 import { loadConfig } from '../src/config.ts';
 import { parseStatusline } from '../src/limits.ts';
-import { post, pruneSessionCaptures, readSessionName, toHubEvent } from '../src/report.ts';
+import { post, pruneSessionCaptures, readCodexThreadName, readSessionName, toHubEvent } from '../src/report.ts';
 import { AGENTS, type Agent } from '../src/types.ts';
 
 const TIMEOUT_MS = 800;
@@ -17,6 +17,8 @@ const STATUSLINE_FILE = join(LOG_DIR, 'statusline-last.json');
 /** Also written by the statusline: one capture per session, for its title. */
 const SESSIONS_DIR = join(LOG_DIR, 'sessions');
 const CAPTURE_MAX_AGE_MS = 48 * 60 * 60 * 1000;
+/** Codex's own index of thread titles. */
+const CODEX_INDEX = join(homedir(), '.codex', 'session_index.jsonl');
 const MAX_LOG = 512 * 1024;
 
 function logError(msg: string): void {
@@ -51,8 +53,14 @@ async function main(mode: string | undefined): Promise<void> {
   if (mode === 'event') {
     const payload: unknown = JSON.parse(await text(process.stdin));
     const sessionId = (payload as { session_id?: unknown } | null)?.session_id;
-    const name = typeof sessionId === 'string' ? readSessionName(SESSIONS_DIR, sessionId) : undefined;
-    const ev = toHubEvent(payload, config.host, Date.now(), { env: process.env, name, agent: agentArg(process.argv[3]) });
+    const agent = agentArg(process.argv[3]);
+    const name =
+      typeof sessionId !== 'string'
+        ? undefined
+        : agent === 'codex'
+          ? readCodexThreadName(CODEX_INDEX, sessionId)
+          : readSessionName(SESSIONS_DIR, sessionId);
+    const ev = toHubEvent(payload, config.host, Date.now(), { env: process.env, name, agent });
     if (ev) await post(config.hubUrl, config.token, '/api/events', ev, TIMEOUT_MS);
     return;
   }

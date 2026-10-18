@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { closeSync, openSync, readSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { HOOK_EVENTS, type Agent, type HookEventName, type HubEvent } from './types.ts';
 import { MAX_NAME, isSessionId, isUuid } from './validate.ts';
@@ -34,10 +34,11 @@ export function toHubEvent(payload: unknown, host: string, now: number, ctx: Eve
   const notificationType = str(p.notification_type);
   if (toolName !== undefined) ev.toolName = toolName;
   if (notificationType !== undefined) ev.notificationType = notificationType;
-  // Inside cmux, the hook inherits which workspace/tab the session runs in.
+  // Inside cmux, a Claude hook inherits which workspace/tab the session runs in. Codex hooks
+  // run in the Codex daemon, whose env points at whatever tab started the daemon: unusable.
   const workspace = env.CMUX_WORKSPACE_ID;
   const surface = env.CMUX_SURFACE_ID;
-  if (isUuid(workspace) && isUuid(surface)) ev.cmux = { workspace, surface };
+  if (ev.agent !== 'codex' && isUuid(workspace) && isUuid(surface)) ev.cmux = { workspace, surface };
   if (ctx.name) ev.name = ctx.name;
   return ev;
 }
@@ -91,4 +92,44 @@ export async function post(hubUrl: string, token: string, path: string, body: un
     signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) throw new Error(`hub responded ${res.status}`);
+}
+
+const INDEX_TAIL_BYTES = 2 * 1024 * 1024;
+
+/** Tail of a file, so a long-lived index never costs more than a couple of MB per hook. */
+function readTail(file: string, bytes: number): string {
+  const fd = openSync(file, 'r');
+  try {
+    const size = statSync(file).size;
+    const start = Math.max(0, size - bytes);
+    const buf = Buffer.alloc(size - start);
+    readSync(fd, buf, 0, buf.length, start);
+    return buf.toString('utf8');
+  } finally {
+    closeSync(fd);
+  }
+}
+
+/** Codex keeps thread titles in ~/.codex/session_index.jsonl; a rename appends a new line. */
+export function readCodexThreadName(indexFile: string, sessionId: string): string | undefined {
+  let text: string;
+  try {
+    text = readTail(indexFile, INDEX_TAIL_BYTES);
+  } catch {
+    return undefined;
+  }
+  const lines = text.split('\n');
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i]!;
+    if (!line.includes(sessionId)) continue;
+    try {
+      const row = JSON.parse(line) as { id?: unknown; thread_name?: unknown };
+      if (row.id !== sessionId || typeof row.thread_name !== 'string') continue;
+      const name = row.thread_name.trim().slice(0, MAX_NAME);
+      if (name) return name;
+    } catch {
+      // a partial first line (tail) or a corrupt line: skip it
+    }
+  }
+  return undefined;
 }
