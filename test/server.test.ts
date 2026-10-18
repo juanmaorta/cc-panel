@@ -1,6 +1,6 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
@@ -10,6 +10,8 @@ import type { View } from '../src/types.ts';
 const TOKEN = 'test-token-0123456789';
 const dir = mkdtempSync(join(tmpdir(), 'cc-panel-'));
 writeFileSync(join(dir, 'index.html'), '<!doctype html><title>t</title>');
+mkdirSync(join(dir, 'fonts'));
+writeFileSync(join(dir, 'fonts', 'Test.woff'), Buffer.from('wOFF-fake'));
 const uiDir = mkdtempSync(join(tmpdir(), 'cc-panel-ui-'));
 writeFileSync(join(uiDir, 'app.ts'), "import type { View } from '../types.ts';\nexport const n: number = 1;\n");
 const stateFile = join(dir, 'state.json');
@@ -151,4 +153,18 @@ test('backfills firstSeenAt for sessions persisted before it existed', async () 
   });
   assert.equal(other.snapshot().sessions['laptop/x']?.firstSeenAt, 10);
   await other.close();
+});
+
+test('serves bundled fonts with a font content type and long cache', async () => {
+  const res = await fetch(base + '/fonts/Test.woff');
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get('content-type'), 'font/woff');
+  assert.match(res.headers.get('cache-control') ?? '', /max-age=\d+/);
+  assert.equal(await res.text(), 'wOFF-fake');
+});
+
+test('font route rejects traversal, unknown files and other extensions', async () => {
+  assert.equal((await fetch(base + '/fonts/Missing.woff')).status, 404);
+  assert.equal((await fetch(base + '/fonts/..%2Findex.html')).status, 404);
+  assert.equal((await fetch(base + '/fonts/Test.ttf')).status, 404);
 });

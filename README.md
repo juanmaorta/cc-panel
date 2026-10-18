@@ -28,16 +28,30 @@ older than 48 h pruned.
 
 ## UI
 
-A classic Mac menu bar on top (NekoDA was a Mac desk accessory, so the cat sets the era):
-1-bit, black on white.
+Styled as the 1989 Mac that NekoDA ran on: 1-bit, black on white (or inverted, see the
+theme switch), Chicago everywhere, no color. Status is told apart by patterns, borrowed
+from classic Mac window chrome.
+
+| Tile title bar | Status | Classic Mac meaning |
+|---|---|---|
+| inverted, blinking | waiting | selection |
+| inverted | error | selection |
+| horizontal stripes | done | active window |
+| 50% gray dither | working | desktop pattern |
+| plain | idle | inactive window |
+
+Tiles on an offline host are dithered out, the way the Mac showed disabled items.
+
+The menu bar:
 
 | Menu bar | Meaning |
 |---|---|
 | Cat | most urgent live state: startled = waiting, scratching = error, washing = done, running = working, asleep = nothing going on |
 | ● / ○ host | online / offline |
 | 5H / SEM | usage of the 5 h and weekly windows as System 6 progress bars, with time to reset |
-| ESPERA · LISTO · CURRO · ZZZ | count per state; ESPERA is shown inverted when non-zero |
+| Espera · Listo · Curro · Zzz | count per state; Espera is shown inverted when non-zero |
 | Clock | local time |
+| ◐ | light/dark; follows the system until you pick one (stored per screen) |
 
 When a session starts waiting or fails the screen inverts for a moment (the classic Mac
 visual beep); when one finishes, the menu bar blinks. Both off with `prefers-reduced-motion`.
@@ -48,9 +62,9 @@ Below it, one touch-friendly tile per session. Each tile has a floor where Neko 
 |---|---|
 | runs back and forth | working |
 | curled up asleep | idle (and everyone on an offline host) |
-| startled, staring at you, red `!` | waiting |
-| washes its face, yellow sparkle | done |
-| scratches an itch, orange `!` | error |
+| startled, staring at you, `!` | waiting |
+| washes its face, sparkle | done |
+| scratches an itch, `!` | error |
 
 Move the pointer or touch the screen and the cats chase it, each one confined to its own
 floor, for a few seconds. Cats that need you do not chase: the alarm stays put.
@@ -65,6 +79,11 @@ for oneko. Art lineage: NEKO.COM (Naoshi Watanabe), NekoDA (Kenji Gotoh), xneko
 git clone https://github.com/tie/oneko /tmp/oneko
 python3 -I scripts/gen-neko-sprites.py /tmp/oneko > src/ui/neko-sprites.ts
 ```
+
+The font is ChicagoFLF, Robin Casady's revival of Susan Kare's Chicago, which he declared
+public domain (statement in `public/fonts/README.ChicagoFLF.txt`, taken from the
+`chicago.css` npm package). It is bundled and served by the hub, so the panel needs no
+internet.
 
 Earlier UIs are preserved as tags: `v0.2-room` (isometric room) and `v0.3-doom` (Doom
 status bar).

@@ -11,6 +11,7 @@ import { parseEvent, parseHeartbeat } from './validate.ts';
 const MAX_BODY = 16 * 1024;
 /** Browser modules are authored in TS and served type-stripped: no build step. */
 const UI_MODULE = /^\/ui\/([a-z0-9-]+)\.ts$/;
+const FONT = /^\/fonts\/([A-Za-z0-9-]+)\.woff$/;
 
 export interface HubOptions {
   token: string;
@@ -107,6 +108,18 @@ export function createHub(opts: HubOptions): Hub {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }).end(html);
       return;
     }
+    const font = req.method === 'GET' ? FONT.exec(path) : null;
+    if (font) {
+      let data: Buffer;
+      try {
+        data = await readFile(join(opts.publicDir, 'fonts', `${font[1]}.woff`));
+      } catch {
+        throw new HttpError(404, 'not found');
+      }
+      res.writeHead(200, { 'content-type': 'font/woff', 'cache-control': 'public, max-age=604800' }).end(data);
+      return;
+    }
+
     const ui = req.method === 'GET' ? UI_MODULE.exec(path) : null;
     if (ui) {
       let source: string;

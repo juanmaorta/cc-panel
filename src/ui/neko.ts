@@ -7,17 +7,22 @@ export const FLOOR_H = CAT_H + 2;
 /** CSS pixels per native pixel. */
 export const FLOOR_SCALE = 3;
 
-function bubble(ctx: Ctx, x: number, text: string, color: string): void {
-  px(ctx, x, 0, 7, 9, color);
-  px(ctx, x + 1, 1, 5, 7, '#ffffff');
-  smallText(ctx, text, x + 2, 2, color);
+export interface Ink {
+  ink: string;
+  paper: string;
 }
 
-/** `accent` is the tile's status color (its CSS --c), so CSS stays the single source of truth. */
-export function drawFloor(ctx: Ctx, width: number, cat: Cat, accent: string, frame: number): void {
+function bubble(ctx: Ctx, x: number, text: string, c: Ink): void {
+  px(ctx, x, 0, 7, 9, c.ink);
+  px(ctx, x + 1, 1, 5, 7, c.paper);
+  smallText(ctx, text, x + 2, 2, c.ink);
+}
+
+/** Colors come from the page's CSS (--ink/--bg), so the theme lives in one place. */
+export function drawFloor(ctx: Ctx, width: number, cat: Cat, c: Ink, frame: number): void {
   ctx.imageSmoothingEnabled = false;
   ctx.clearRect(0, 0, width, FLOOR_H);
-  px(ctx, 0, FLOOR_H - 1, width, 1, accent);
+  px(ctx, 0, FLOOR_H - 1, width, 1, c.ink);
 
   const y = FLOOR_H - 1 - CAT_H;
   sprite(ctx, catFrame(cat.mode, cat.dir, frame), CAT_PALETTE, cat.x, y);
@@ -27,18 +32,18 @@ export function drawFloor(ctx: Ctx, width: number, cat: Cat, accent: string, fra
   switch (cat.mode) {
     case 'alert':
     case 'scratch':
-      bubble(ctx, side, '!', accent);
+      bubble(ctx, side, '!', c);
       break;
     case 'wash':
       // Blinking sparkle: "done", told apart from a plain sitting cat.
       if (frame % 2 === 0) {
-        px(ctx, side + 2, 3, 1, 5, accent);
-        px(ctx, side, 5, 5, 1, accent);
+        px(ctx, side + 2, 3, 1, 5, c.ink);
+        px(ctx, side, 5, 5, 1, c.ink);
       }
       break;
     case 'run':
       // Dust behind the back paw.
-      px(ctx, cat.dir === 1 ? cat.x - 2 : cat.x + CAT_W + 1, FLOOR_H - 3 - (frame % 2), 1, 1, '#5f5f5f');
+      px(ctx, cat.dir === 1 ? cat.x - 2 : cat.x + CAT_W + 1, FLOOR_H - 3 - (frame % 2), 1, 1, c.ink);
       break;
   }
 }

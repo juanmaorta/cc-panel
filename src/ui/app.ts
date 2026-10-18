@@ -2,7 +2,7 @@ import type { SessionView, View } from '../types.ts';
 import { flashFor, menuState, type Flash, type LimitState } from './menubar-logic.ts';
 import { initialCat, stepCat, type Cat, type CatMode } from './neko-logic.ts';
 import { CAT_H, CAT_PALETTE, catFrame } from './neko-sprites.ts';
-import { FLOOR_H, FLOOR_SCALE, drawFloor } from './neko.ts';
+import { FLOOR_H, FLOOR_SCALE, drawFloor, type Ink } from './neko.ts';
 import { sprite } from './pixel.ts';
 import { nextTheme, parseStored, resolveTheme } from './theme.ts';
 
@@ -15,24 +15,24 @@ const CAT_FRAME_STEPS = 3;
 /** How long cats keep chasing after the last pointer movement. */
 const CHASE_MS = 4000;
 const LABEL: Record<SessionView['status'], string> = {
-  waiting: 'TE ESPERA',
-  error: 'ERROR',
-  done: 'LISTO',
-  working: 'CURRANDO',
-  idle: 'ZZZ',
-  ended: 'FIN',
+  waiting: 'Te espera',
+  error: 'Error',
+  done: 'Listo',
+  working: 'Currando',
+  idle: 'Zzz',
+  ended: 'Fin',
 };
 
 function detailLabel(detail: string | undefined): string | undefined {
   if (!detail) return undefined;
-  if (detail.startsWith('permission: ')) return `PERMISO ${detail.slice(12).toUpperCase()}`;
+  if (detail.startsWith('permission: ')) return `permiso ${detail.slice(12)}`;
   const known: Record<string, string> = {
-    question: 'PREGUNTA',
-    plan: 'PLAN',
-    permission_prompt: 'PERMISO',
-    elicitation_dialog: 'INPUT',
+    question: 'pregunta',
+    plan: 'plan',
+    permission_prompt: 'permiso',
+    elicitation_dialog: 'input',
   };
-  return known[detail] ?? detail.toUpperCase();
+  return known[detail] ?? detail;
 }
 
 const store = {
@@ -116,10 +116,10 @@ function renderMenu(v: View): void {
   renderLimit('l5', m.fiveHour);
   renderLimit('l7', m.sevenDay);
   const items: [string, number, boolean][] = [
-    ['ESPERA', m.tally.waiting, m.tally.waiting > 0],
-    ['LISTO', m.tally.done, false],
-    ['CURRO', m.tally.working, false],
-    ['ZZZ', m.tally.idle, false],
+    ['Espera', m.tally.waiting, m.tally.waiting > 0],
+    ['Listo', m.tally.done, false],
+    ['Curro', m.tally.working, false],
+    ['Zzz', m.tally.idle, false],
   ];
   $('tally').replaceChildren(...items.map(([label, n, hot]) => el('span', hot ? 'hot' : '', `${label} ${n}`)));
   mood = m.mood;
@@ -143,8 +143,8 @@ interface Tile {
   floor: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
   cat: Cat;
-  /** Resolved --c of the tile, refreshed when its status class changes. */
-  accent: string;
+  /** Resolved --ink/--bg, refreshed on status and theme changes. */
+  colors: Ink;
 }
 
 const tiles = new Map<string, Tile>();
@@ -152,16 +152,19 @@ const keyOf = (s: SessionView) => `${s.host}/${s.sessionId}`;
 
 function createTile(s: SessionView): Tile {
   const root = el('article', 'tile');
-  const text = el('div', 'info');
+  // Title bar like a classic Mac window; its pattern shows the status (see CSS).
+  const titlebar = el('div', 'titlebar');
   const project = el('div', 'project');
+  titlebar.append(project);
+  const text = el('div', 'info');
   const status = el('div', 'status');
   const meta = el('div', 'meta');
-  text.append(project, status, meta);
+  text.append(status, meta);
   const floor = el('canvas', 'floor');
   floor.height = FLOOR_H;
   floor.style.height = `${FLOOR_H * FLOOR_SCALE}px`;
-  root.append(text, floor);
-  return { session: s, el: root, project, status, meta, floor, ctx: floor.getContext('2d')!, cat: initialCat(s.sessionId, 64), accent: '#000' };
+  root.append(titlebar, text, floor);
+  return { session: s, el: root, project, status, meta, floor, ctx: floor.getContext('2d')!, cat: initialCat(s.sessionId, 64), colors: { ink: '#000', paper: '#fff' } };
 }
 
 /** Keeps the floor at an integer scale; returns its native width. */
@@ -181,7 +184,7 @@ function renderTiles(v: View): void {
   if (v.sessions.length === 0) {
     tiles.forEach((t) => t.el.remove());
     tiles.clear();
-    if (!empty) grid.append(el('p', 'empty', 'NADA QUE HACER. SIN SESIONES EN 24 H.'));
+    if (!empty) grid.append(el('p', 'empty', 'Nada que hacer. Sin sesiones en 24 h.'));
     return;
   }
   empty?.remove();
@@ -200,12 +203,12 @@ function renderTiles(v: View): void {
     if (t.el.className !== cls || !t.el.isConnected) {
       t.el.className = cls;
       grid.append(t.el);
-      t.accent = accentOf(t);
+      t.colors = colorsOf(t);
     }
     t.el.title = `${s.cwd}\n${s.host} · ${s.sessionId}`;
     t.project.textContent = s.project;
     t.status.textContent = [LABEL[s.status], detailLabel(s.detail)].filter(Boolean).join(' · ');
-    t.meta.textContent = [age(v.generatedAt - s.since), multiHost ? s.host : null, s.hostOnline ? null : 'OFFLINE']
+    t.meta.textContent = [age(v.generatedAt - s.since), multiHost ? s.host : null, s.hostOnline ? null : 'offline']
       .filter(Boolean)
       .join(' · ');
     grid.append(t.el); // append moves existing nodes: keeps view order without rebuilding
@@ -218,11 +221,14 @@ function renderTiles(v: View): void {
   }
 }
 
-const accentOf = (t: Tile) => getComputedStyle(t.el).getPropertyValue('--c').trim() || '#000';
+function colorsOf(t: Tile): Ink {
+  const css = getComputedStyle(t.el);
+  return { ink: css.getPropertyValue('--ink').trim() || '#000', paper: css.getPropertyValue('--bg').trim() || '#fff' };
+}
 
-/** Canvas floors cache their tile's color; re-read them whenever the theme changes. */
-function refreshAccents(): void {
-  for (const t of tiles.values()) t.accent = accentOf(t);
+/** Canvas floors cache their colors; re-read them whenever the theme changes. */
+function refreshColors(): void {
+  for (const t of tiles.values()) t.colors = colorsOf(t);
 }
 
 const darkQuery = matchMedia('(prefers-color-scheme: dark)');
@@ -230,9 +236,9 @@ $('theme').addEventListener('click', () => {
   const next = nextTheme(resolveTheme(parseStored(store.get('cc-panel-theme')), darkQuery.matches));
   document.documentElement.dataset.theme = next;
   store.set('cc-panel-theme', next);
-  refreshAccents();
+  refreshColors();
 });
-darkQuery.addEventListener('change', refreshAccents);
+darkQuery.addEventListener('change', refreshColors);
 
 let pointer: { x: number; at: number } | null = null;
 const trackPointer = (e: PointerEvent) => {
@@ -252,7 +258,7 @@ function animateCats(): void {
     const target = moving && chasing !== null ? (chasing - left) / FLOOR_SCALE : null;
     const next = stepCat(t.cat, { status: t.session.status, hostOnline: t.session.hostOnline, width, target });
     t.cat = moving ? next : { ...next, x: t.cat.x };
-    drawFloor(t.ctx, width, t.cat, t.accent, catFrame);
+    drawFloor(t.ctx, width, t.cat, t.colors, catFrame);
   }
 }
 
@@ -268,7 +274,7 @@ async function tick(): Promise<void> {
     if (res.status === 401) {
       token = null;
       login.hidden = false;
-      err.textContent = 'TOKEN INVÁLIDO';
+      err.textContent = 'Token inválido';
       return;
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -282,7 +288,7 @@ async function tick(): Promise<void> {
     document.title = waiting ? `(${waiting}) cc-panel` : 'cc-panel';
     err.textContent = '';
   } catch (e) {
-    err.textContent = `HUB INACCESIBLE (${e instanceof Error ? e.message : String(e)})`;
+    err.textContent = `Hub inaccesible (${e instanceof Error ? e.message : String(e)})`;
   }
 }
 

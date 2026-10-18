@@ -8,92 +8,100 @@
   // Apply a stored theme before first paint so dark mode does not flash white.
   try { var t = localStorage.getItem('cc-panel-theme'); if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t; } catch (e) {}
 </script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
 <style>
-  /* Classic Mac: black on white. Status colors keep >= 4.5:1 against the background. */
-  :root {
-    --bg: #ffffff; --tile: #ffffff; --ink: #000000; --text: #000000; --muted: #5f5f5f; --off: #777777;
-    --waiting: #c81e1e; --error: #c2410c; --done: #8a6d00; --working: #1d4ed8; --idle: #5f5f5f;
+  /* ChicagoFLF: Robin Casady's revival of Chicago, public domain (see /fonts/README.ChicagoFLF.txt). */
+  @font-face {
+    font-family: "ChicagoFLF";
+    src: url("/fonts/ChicagoFLF.woff") format("woff");
+    font-display: block;
   }
-  /* Dark = the classic Mac inverted. Follows the system unless the viewer picked one. */
+  /* 1-bit, like the 1989 Mac that NekoDA ran on: no color, status told apart by patterns. */
+  :root { --bg: #ffffff; --ink: #000000; }
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #000000; --tile: #000000; --ink: #ffffff; --text: #ffffff; --muted: #a0a0a0; --off: #888888;
-      --waiting: #ff5c5c; --error: #ff8a4c; --done: #f0cc3c; --working: #7aa2ff; --idle: #a0a0a0;
-    }
+    :root:not([data-theme="light"]) { --bg: #000000; --ink: #ffffff; }
   }
-  :root[data-theme="dark"] {
-    --bg: #000000; --tile: #000000; --ink: #ffffff; --text: #ffffff; --muted: #a0a0a0; --off: #888888;
-    --waiting: #ff5c5c; --error: #ff8a4c; --done: #f0cc3c; --working: #7aa2ff; --idle: #a0a0a0;
+  :root[data-theme="dark"] { --bg: #000000; --ink: #ffffff; }
+  :root {
+    --dither: repeating-conic-gradient(var(--ink) 0 25%, var(--bg) 0 50%) 0 0 / 2px 2px;
+    --stripes: repeating-linear-gradient(to bottom, var(--ink) 0 1px, var(--bg) 1px 2px);
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
   body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 22px/1.1 "VT323", ui-monospace, Menlo, monospace;
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.25 "ChicagoFLF", system-ui, sans-serif;
     display: flex; flex-direction: column; overflow: hidden;
   }
-  /* Classic Mac menu bar: 1-bit. */
+
+  /* Menu bar */
   #menubar {
-    flex: none; position: relative; z-index: 1; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 22px;
-    min-height: 40px; padding: 2px 16px 2px 8px; background: var(--bg); color: var(--ink);
-    border-bottom: 2px solid var(--ink); font-size: 24px; line-height: 1;
+    flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 20px;
+    min-height: 40px; padding: 2px 12px 2px 8px; background: var(--bg);
+    border-bottom: 2px solid var(--ink);
   }
   #menucat { width: 32px; height: 32px; image-rendering: pixelated; }
-  #menubar .brand { display: flex; align-items: center; gap: 6px; font-size: 26px; }
+  #menubar .brand { display: flex; align-items: center; gap: 6px; }
   #hosts { display: flex; gap: 12px; }
-  #hosts .host:not(.online) { color: var(--off); }
+  #hosts .host:not(.online) { text-decoration: line-through; }
   .limit { display: flex; align-items: center; gap: 8px; }
   .limit b { font-weight: normal; }
-  .progress { width: 120px; height: 16px; border: 2px solid var(--ink); background: var(--bg); }
-  .progress .fill {
-    display: block; height: 100%; max-width: 100%;
-    background: repeating-conic-gradient(var(--ink) 0 25%, var(--bg) 0 50%) 0 0 / 4px 4px;
-  }
+  .progress { width: 120px; height: 14px; border: 2px solid var(--ink); background: var(--bg); }
+  .progress .fill { display: block; height: 100%; max-width: 100%; background: var(--dither); }
   .progress .fill.full { background: var(--ink); }
   #tally { display: flex; flex-wrap: wrap; gap: 4px 12px; }
-  #tally .hot { background: var(--ink); color: var(--bg); padding: 0 4px; }
-  #menubar #error { color: var(--bg); background: var(--ink); padding: 0 4px; }
+  #tally .hot, #menubar #error { background: var(--ink); color: var(--bg); padding: 0 4px; }
   #menubar #error:empty { display: none; }
   #clock { margin-left: auto; }
   #theme { font: inherit; color: var(--ink); background: var(--bg); border: 2px solid var(--ink);
-    min-width: 40px; min-height: 32px; padding: 0 6px; cursor: pointer; }
-  #theme:focus-visible { outline: 2px dashed var(--ink); outline-offset: 2px; }
+    border-radius: 6px; min-width: 40px; min-height: 30px; padding: 0 6px; cursor: pointer; }
+  #theme:focus-visible { outline: 2px dotted var(--ink); outline-offset: 2px; }
   #menubar.blink { animation: blink .5s steps(2, jump-none) 2; }
   @keyframes blink { 50% { filter: invert(1); } }
   html.beep { filter: invert(1); }
+
+  /* Tiles: classic Mac windows. The title bar pattern carries the status. */
   main { flex: 1; overflow-y: auto; padding: 16px; min-height: 0; }
-  #sessions { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
-  /* Tiles are classic Mac windows: 2px black frame, hard drop shadow, status ring inside. */
+  #sessions { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
   .tile {
-    display: flex; flex-direction: column; gap: 6px; padding: 10px 12px 6px; min-width: 0; touch-action: manipulation;
-    background: var(--tile); border: 2px solid var(--ink);
-    box-shadow: inset 0 0 0 3px var(--c, var(--idle)), 3px 3px 0 var(--ink);
+    position: relative; display: flex; flex-direction: column; min-width: 0; touch-action: manipulation;
+    background: var(--bg); border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink);
   }
-  .tile .floor { display: block; image-rendering: pixelated; align-self: center; }
-  .tile .info { min-width: 0; }
-  .tile .project { font-size: 34px; text-transform: uppercase; color: var(--text);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tile .status { color: var(--c); font-size: 24px; letter-spacing: .04em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tile .meta { color: var(--muted); font-size: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .s-waiting { --c: var(--waiting); animation: alarm 1s steps(2, jump-none) infinite; }
-  .s-error { --c: var(--error); }
-  .s-done { --c: var(--done); }
-  .s-working { --c: var(--working); }
-  .s-idle { --c: var(--idle); }
-  .tile.offline { opacity: .45; filter: grayscale(1); animation: none; }
-  @keyframes alarm { 50% { box-shadow: inset 0 0 0 6px var(--c), 3px 3px 0 var(--ink); } }
-  .empty { color: var(--muted); font-size: 28px; text-align: center; margin-top: 15vh; }
+  .tile .titlebar {
+    display: flex; justify-content: center; padding: 4px 8px; border-bottom: 2px solid var(--ink);
+  }
+  .tile .project {
+    padding: 0 8px; background: var(--bg); text-transform: uppercase; font-size: 18px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
+  }
+  .tile .info { padding: 8px 12px 0; min-width: 0; }
+  .tile .status, .tile .meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tile .meta { font-size: 14px; }
+  .tile .floor { display: block; image-rendering: pixelated; align-self: center; margin: 2px 0 6px; }
+
+  .s-done .titlebar { background: var(--stripes) content-box; }          /* active window */
+  .s-working .titlebar { background: var(--dither) content-box; }        /* busy: desktop gray */
+  .s-idle .titlebar { background: var(--bg); }                            /* inactive window */
+  .s-waiting .titlebar, .s-error .titlebar { background: var(--ink); }    /* selected: inverted */
+  .s-waiting .project, .s-error .project { background: var(--ink); color: var(--bg); }
+  .s-waiting .titlebar { animation: alarm 1s steps(2, jump-none) infinite; }
+  @keyframes alarm { 50% { filter: invert(1); } }
+
+  /* Disabled, the classic Mac way: a dither of the background over everything. */
+  .tile.offline::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-conic-gradient(var(--bg) 0 25%, transparent 0 50%) 0 0 / 2px 2px; }
+  .tile.offline .titlebar { animation: none; }
+
+  .empty { font-size: 18px; text-align: center; margin-top: 15vh; }
   #login { max-width: 420px; margin: 15vh auto 0; text-align: center; }
-  #login input { width: 100%; padding: 8px; font: inherit; background: var(--bg); color: var(--text);
+  #login input { width: 100%; padding: 8px; font: inherit; background: var(--bg); color: var(--ink);
     border: 2px solid var(--ink); }
-  @media (prefers-reduced-motion: reduce) { .s-waiting { animation: none; box-shadow: inset 0 0 0 6px var(--c), 3px 3px 0 var(--ink); } }
-  @media (prefers-reduced-motion: reduce) { #menubar.blink { animation: none; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .s-waiting .titlebar, #menubar.blink { animation: none; }
+  }
   @media (max-width: 600px) {
     main { padding: 12px; } #sessions { grid-template-columns: 1fr; }
-    #menubar { padding: 2px 12px 2px 4px; gap: 4px 12px; font-size: 20px; }
+    #menubar { gap: 4px 12px; font-size: 14px; }
     .progress { width: 60px; } #clock, #menubar .brand .name { display: none; }
     #tally, #hosts { display: contents; }
   }
@@ -112,7 +120,7 @@
 </header>
 <main>
   <form id="login" hidden>
-    <p>INTRODUCE EL TOKEN DEL HUB</p>
+    <p>Introduce el token del hub</p>
     <input name="token" type="password" autocomplete="off" required>
   </form>
   <div id="sessions"></div>
