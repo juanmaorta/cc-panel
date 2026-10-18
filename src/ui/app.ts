@@ -4,6 +4,7 @@ import { initialCat, stepCat, type Cat, type CatMode } from './neko-logic.ts';
 import { CAT_H, CAT_PALETTE, catFrame } from './neko-sprites.ts';
 import { FLOOR_H, FLOOR_SCALE, drawFloor } from './neko.ts';
 import { sprite } from './pixel.ts';
+import { nextTheme, parseStored, resolveTheme } from './theme.ts';
 
 const POLL_MS = 2000;
 const CLOCK_MS = 10_000;
@@ -199,7 +200,7 @@ function renderTiles(v: View): void {
     if (t.el.className !== cls || !t.el.isConnected) {
       t.el.className = cls;
       grid.append(t.el);
-      t.accent = getComputedStyle(t.el).getPropertyValue('--c').trim() || '#000';
+      t.accent = accentOf(t);
     }
     t.el.title = `${s.cwd}\n${s.host} · ${s.sessionId}`;
     t.project.textContent = s.project;
@@ -216,6 +217,22 @@ function renderTiles(v: View): void {
     }
   }
 }
+
+const accentOf = (t: Tile) => getComputedStyle(t.el).getPropertyValue('--c').trim() || '#000';
+
+/** Canvas floors cache their tile's color; re-read them whenever the theme changes. */
+function refreshAccents(): void {
+  for (const t of tiles.values()) t.accent = accentOf(t);
+}
+
+const darkQuery = matchMedia('(prefers-color-scheme: dark)');
+$('theme').addEventListener('click', () => {
+  const next = nextTheme(resolveTheme(parseStored(store.get('cc-panel-theme')), darkQuery.matches));
+  document.documentElement.dataset.theme = next;
+  store.set('cc-panel-theme', next);
+  refreshAccents();
+});
+darkQuery.addEventListener('change', refreshAccents);
 
 let pointer: { x: number; at: number } | null = null;
 const trackPointer = (e: PointerEvent) => {

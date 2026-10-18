@@ -4,14 +4,29 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>cc-panel</title>
+<script>
+  // Apply a stored theme before first paint so dark mode does not flash white.
+  try { var t = localStorage.getItem('cc-panel-theme'); if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
 <style>
-  /* Classic Mac: black on white. Status colors are dark enough for >= 4.5:1 on white. */
+  /* Classic Mac: black on white. Status colors keep >= 4.5:1 against the background. */
   :root {
-    --bg: #ffffff; --tile: #ffffff; --ink: #000000; --text: #000000; --muted: #5f5f5f;
+    --bg: #ffffff; --tile: #ffffff; --ink: #000000; --text: #000000; --muted: #5f5f5f; --off: #777777;
     --waiting: #c81e1e; --error: #c2410c; --done: #8a6d00; --working: #1d4ed8; --idle: #5f5f5f;
+  }
+  /* Dark = the classic Mac inverted. Follows the system unless the viewer picked one. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #000000; --tile: #000000; --ink: #ffffff; --text: #ffffff; --muted: #a0a0a0; --off: #888888;
+      --waiting: #ff5c5c; --error: #ff8a4c; --done: #f0cc3c; --working: #7aa2ff; --idle: #a0a0a0;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #000000; --tile: #000000; --ink: #ffffff; --text: #ffffff; --muted: #a0a0a0; --off: #888888;
+    --waiting: #ff5c5c; --error: #ff8a4c; --done: #f0cc3c; --working: #7aa2ff; --idle: #a0a0a0;
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
@@ -20,29 +35,32 @@
     font: 22px/1.1 "VT323", ui-monospace, Menlo, monospace;
     display: flex; flex-direction: column; overflow: hidden;
   }
-  /* Classic Mac menu bar: 1-bit, black on white. */
+  /* Classic Mac menu bar: 1-bit. */
   #menubar {
     flex: none; position: relative; z-index: 1; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 22px;
-    min-height: 40px; padding: 2px 16px 2px 8px; background: #fff; color: #000;
-    border-bottom: 2px solid #000; font-size: 24px; line-height: 1;
+    min-height: 40px; padding: 2px 16px 2px 8px; background: var(--bg); color: var(--ink);
+    border-bottom: 2px solid var(--ink); font-size: 24px; line-height: 1;
   }
   #menucat { width: 32px; height: 32px; image-rendering: pixelated; }
   #menubar .brand { display: flex; align-items: center; gap: 6px; font-size: 26px; }
   #hosts { display: flex; gap: 12px; }
-  #hosts .host:not(.online) { color: #777; }
+  #hosts .host:not(.online) { color: var(--off); }
   .limit { display: flex; align-items: center; gap: 8px; }
   .limit b { font-weight: normal; }
-  .progress { width: 120px; height: 16px; border: 2px solid #000; background: #fff; }
+  .progress { width: 120px; height: 16px; border: 2px solid var(--ink); background: var(--bg); }
   .progress .fill {
     display: block; height: 100%; max-width: 100%;
-    background: repeating-conic-gradient(#000 0 25%, #fff 0 50%) 0 0 / 4px 4px;
+    background: repeating-conic-gradient(var(--ink) 0 25%, var(--bg) 0 50%) 0 0 / 4px 4px;
   }
-  .progress .fill.full { background: #000; }
+  .progress .fill.full { background: var(--ink); }
   #tally { display: flex; flex-wrap: wrap; gap: 4px 12px; }
-  #tally .hot { background: #000; color: #fff; padding: 0 4px; }
-  #menubar #error { color: #fff; background: #000; padding: 0 4px; }
+  #tally .hot { background: var(--ink); color: var(--bg); padding: 0 4px; }
+  #menubar #error { color: var(--bg); background: var(--ink); padding: 0 4px; }
   #menubar #error:empty { display: none; }
   #clock { margin-left: auto; }
+  #theme { font: inherit; color: var(--ink); background: var(--bg); border: 2px solid var(--ink);
+    min-width: 40px; min-height: 32px; padding: 0 6px; cursor: pointer; }
+  #theme:focus-visible { outline: 2px dashed var(--ink); outline-offset: 2px; }
   #menubar.blink { animation: blink .5s steps(2, jump-none) 2; }
   @keyframes blink { 50% { filter: invert(1); } }
   html.beep { filter: invert(1); }
@@ -90,6 +108,7 @@
   <span id="tally"></span>
   <span id="error" role="status"></span>
   <span id="clock"></span>
+  <button id="theme" type="button" aria-label="Cambiar entre tema claro y oscuro">◐</button>
 </header>
 <main>
   <form id="login" hidden>
