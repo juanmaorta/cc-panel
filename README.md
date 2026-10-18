@@ -26,27 +26,28 @@ Hosts send a heartbeat every 60 s (launchd). No heartbeat for 3 min → host sho
 its sessions keep their last known status, dimmed. Sessions older than 24 h are hidden,
 older than 48 h pruned.
 
-## UI: Doom status bar
+## UI
 
-Original pixel art in the spirit of Doom's status bar (no id Software assets), rendered on a
-320×32 canvas and scaled with `image-rendering: pixelated` — exactly 6× on a 1920×720 bar display.
+A classic Mac menu bar on top (NekoDA was a Mac desk accessory, so the cat sets the era):
+1-bit, black on white.
 
-| Bar | Meaning |
+| Menu bar | Meaning |
 |---|---|
-| AMMO | sessions in the last 24 h |
-| HEALTH | % left of the 5 h usage window |
-| ARMOR | % left of the weekly usage window |
-| ARMS | host slots 1-6, lit when online |
-| Face | most urgent live session: ouch = waiting, pain = error, evil grin = done, gritted teeth = working, looking around = idle; bloodier as HEALTH drops, dead at 0 % |
-| Keys | red = something needs you, yellow = new result, blue = working |
-| Table | count per state |
+| Cat | most urgent live state: startled = waiting, scratching = error, washing = done, running = working, asleep = nothing going on |
+| ● / ○ host | online / offline |
+| 5H / SEM | usage of the 5 h and weekly windows as System 6 progress bars, with time to reset |
+| ESPERA · LISTO · CURRO · ZZZ | count per state; ESPERA is shown inverted when non-zero |
+| Clock | local time |
 
-Above the bar, one touch-friendly tile per session. Each tile has a floor where Neko lives:
+When a session starts waiting or fails the screen inverts for a moment (the classic Mac
+visual beep); when one finishes, the menu bar blinks. Both off with `prefers-reduced-motion`.
+
+Below it, one touch-friendly tile per session. Each tile has a floor where Neko lives:
 
 | Cat | Status |
 |---|---|
 | runs back and forth | working |
-| curled up asleep, Z | idle (and everyone on an offline host) |
+| curled up asleep | idle (and everyone on an offline host) |
 | startled, staring at you, red `!` | waiting |
 | washes its face, yellow sparkle | done |
 | scratches an itch, orange `!` | error |
@@ -65,10 +66,8 @@ git clone https://github.com/tie/oneko /tmp/oneko
 python3 -I scripts/gen-neko-sprites.py /tmp/oneko > src/ui/neko-sprites.ts
 ```
 
-The previous isometric room view is preserved at tag `v0.2-room`.
-
-Screen flashes red when a session starts waiting or
-fails, gold when one finishes (off with `prefers-reduced-motion`).
+Earlier UIs are preserved as tags: `v0.2-room` (isometric room) and `v0.3-doom` (Doom
+status bar).
 
 UI modules are written in TS under `src/ui/` and served type-stripped by the hub
 (`module.stripTypeScriptTypes`), so there is still no build step.
@@ -83,7 +82,7 @@ mkdir -p ~/.local/state/cc-panel && printf '%s' "$input" > ~/.local/state/cc-pan
   && mv ~/.local/state/cc-panel/statusline-last.json.$$ ~/.local/state/cc-panel/statusline-last.json
 ```
 
-Without it HEALTH/ARMOR show `--%`.
+Without it the 5H/SEM bars show `--`.
 
 ## Install
 

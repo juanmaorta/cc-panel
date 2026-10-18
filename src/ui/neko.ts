@@ -31,7 +31,7 @@ export function drawFloor(ctx: Ctx, width: number, cat: Cat, status: SessionStat
   const y = FLOOR_H - 1 - CAT_H;
   sprite(ctx, catFrame(cat.mode, cat.dir, frame), CAT_PALETTE, cat.x, y);
 
-  // Extras go beside the head, on whichever side has room.
+  // Extras go beside the head, on whichever side has room. (oneko's sleep frames draw their own Zs.)
   const side = cat.x + CAT_W + 8 <= width ? cat.x + CAT_W + 1 : cat.x - 8;
   switch (cat.mode) {
     case 'alert':
@@ -40,11 +40,6 @@ export function drawFloor(ctx: Ctx, width: number, cat: Cat, status: SessionStat
     case 'scratch':
       bubble(ctx, side, '!', '#ff5a1f');
       break;
-    case 'sleep': {
-      const rise = frame % 3;
-      smallText(ctx, 'Z', side + rise, 8 - rise * 3, '#a8ccff');
-      break;
-    }
     case 'wash':
       // Blinking sparkle: "done", told apart from a plain sitting cat.
       if (frame % 2 === 0) {

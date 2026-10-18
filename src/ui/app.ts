@@ -1,11 +1,14 @@
 import type { SessionView, View } from '../types.ts';
-import { barState, flashFor, type Flash } from './doom-logic.ts';
-import { initialCat, stepCat, type Cat } from './neko-logic.ts';
+import { flashFor, menuState, type Flash, type LimitState } from './menubar-logic.ts';
+import { initialCat, stepCat, type Cat, type CatMode } from './neko-logic.ts';
+import { CAT_H, CAT_PALETTE, catFrame } from './neko-sprites.ts';
 import { FLOOR_H, FLOOR_SCALE, drawFloor } from './neko.ts';
-import { BAR_H, BAR_W, drawBar } from './statusbar.ts';
+import { sprite } from './pixel.ts';
 
 const POLL_MS = 2000;
-const FRAME_MS = 1200;
+const CLOCK_MS = 10_000;
+/** A visual beep inverts the screen for about one frame, like the classic Mac. */
+const BEEP_MS = 160;
 const STEP_MS = 100;
 const CAT_FRAME_STEPS = 3;
 /** How long cats keep chasing after the last pointer movement. */
@@ -56,13 +59,14 @@ if (fromHash) {
 }
 let token = store.get('cc-panel-token');
 
-const bar = $<HTMLCanvasElement>('bar');
-bar.width = BAR_W;
-bar.height = BAR_H;
-const barCtx = bar.getContext('2d')!;
+const menuCat = $<HTMLCanvasElement>('menucat');
+menuCat.width = CAT_H;
+menuCat.height = CAT_H;
+const menuCatCtx = menuCat.getContext('2d')!;
 
 let view: View | null = null;
-let frame = 0;
+let step = 0;
+let mood: CatMode = 'sleep';
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
 function age(ms: number): string {
@@ -83,14 +87,50 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
 
 function flash(kind: Flash): void {
   if (reducedMotion.matches) return;
-  const f = $('flash');
-  f.className = '';
-  void f.offsetWidth; // restart the animation
-  f.className = kind;
+  if (kind === 'beep') {
+    document.documentElement.classList.add('beep');
+    setTimeout(() => document.documentElement.classList.remove('beep'), BEEP_MS);
+    return;
+  }
+  const bar = $('menubar');
+  bar.classList.remove('blink');
+  void bar.offsetWidth; // restart the animation
+  bar.classList.add('blink');
 }
 
-function paintBar(): void {
-  if (view) drawBar(barCtx, barState(view), frame);
+function renderLimit(id: string, l: LimitState | null): void {
+  const root = $(id);
+  const fill = root.querySelector<HTMLElement>('.fill')!;
+  fill.style.width = `${l?.usedPct ?? 0}%`;
+  fill.classList.toggle('full', (l?.usedPct ?? 0) >= 90);
+  root.querySelector('.val')!.textContent = l ? `${l.usedPct}% · ${l.resetsIn}` : '--';
+  root.title = l ? `${l.usedPct}% usado, reset en ${l.resetsIn}` : 'sin datos de la statusline';
+}
+
+function renderMenu(v: View): void {
+  const m = menuState(v);
+  $('hosts').replaceChildren(
+    ...m.hosts.map((h) => el('span', `host${h.online ? ' online' : ''}`, `${h.online ? '●' : '○'} ${h.host}`)),
+  );
+  renderLimit('l5', m.fiveHour);
+  renderLimit('l7', m.sevenDay);
+  const items: [string, number, boolean][] = [
+    ['ESPERA', m.tally.waiting, m.tally.waiting > 0],
+    ['LISTO', m.tally.done, false],
+    ['CURRO', m.tally.working, false],
+    ['ZZZ', m.tally.idle, false],
+  ];
+  $('tally').replaceChildren(...items.map(([label, n, hot]) => el('span', hot ? 'hot' : '', `${label} ${n}`)));
+  mood = m.mood;
+}
+
+function drawMenuCat(): void {
+  menuCatCtx.clearRect(0, 0, CAT_H, CAT_H);
+  sprite(menuCatCtx, catFrame(mood, 1, Math.floor(step / CAT_FRAME_STEPS)), CAT_PALETTE, 0, 0);
+}
+
+function renderClock(): void {
+  $('clock').textContent = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 }
 
 interface Tile {
@@ -177,7 +217,6 @@ const trackPointer = (e: PointerEvent) => {
 addEventListener('pointermove', trackPointer);
 addEventListener('pointerdown', trackPointer);
 
-let step = 0;
 function animateCats(): void {
   const chasing = pointer && Date.now() - pointer.at < CHASE_MS ? pointer.x : null;
   const moving = !reducedMotion.matches;
@@ -213,7 +252,7 @@ async function tick(): Promise<void> {
     const f = flashFor(view, next);
     view = next;
     renderTiles(next);
-    paintBar();
+    renderMenu(next);
     if (f) flash(f);
     const waiting = next.sessions.filter((s) => s.hostOnline && (s.status === 'waiting' || s.status === 'error')).length;
     document.title = waiting ? `(${waiting}) cc-panel` : 'cc-panel';
@@ -236,9 +275,9 @@ void tick();
 setInterval(() => {
   if (token) void tick();
 }, POLL_MS);
+renderClock();
+setInterval(renderClock, CLOCK_MS);
 setInterval(() => {
-  if (reducedMotion.matches) return;
-  frame++;
-  paintBar();
-}, FRAME_MS);
-setInterval(animateCats, STEP_MS);
+  animateCats();
+  drawMenuCat();
+}, STEP_MS);

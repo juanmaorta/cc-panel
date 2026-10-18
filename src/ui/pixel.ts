@@ -1,4 +1,4 @@
-import { SMALL } from './sprites.ts';
+import { SMALL } from './font.ts';
 
 export type Ctx = CanvasRenderingContext2D;
 
