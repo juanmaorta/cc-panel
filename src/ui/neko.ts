@@ -1,5 +1,5 @@
 import { CAT_W, type Cat } from './neko-logic.ts';
-import { CAT_H, CAT_PALETTE, catFrame } from './neko-sprites.ts';
+import { CAT_H, catFrame } from './neko-sprites.ts';
 import { px, smallText, sprite, type Ctx } from './pixel.ts';
 
 /** Native height of a tile's floor: the cat plus a ground line. */
@@ -11,6 +11,9 @@ export interface Ink {
   ink: string;
   paper: string;
 }
+
+/** The 1-bit sprites take the theme's ink and paper, so dark mode inverts the cat too. */
+export const catColors = (c: Ink): Record<string, string> => ({ k: c.ink, w: c.paper });
 
 function bubble(ctx: Ctx, x: number, text: string, c: Ink): void {
   px(ctx, x, 0, 7, 9, c.ink);
@@ -25,7 +28,7 @@ export function drawFloor(ctx: Ctx, width: number, cat: Cat, c: Ink, frame: numb
   px(ctx, 0, FLOOR_H - 1, width, 1, c.ink);
 
   const y = FLOOR_H - 1 - CAT_H;
-  sprite(ctx, catFrame(cat.mode, cat.dir, frame), CAT_PALETTE, cat.x, y);
+  sprite(ctx, catFrame(cat.mode, cat.dir, frame), catColors(c), cat.x, y);
 
   // Extras go beside the head, on whichever side has room. (oneko's sleep frames draw their own Zs.)
   const side = cat.x + CAT_W + 8 <= width ? cat.x + CAT_W + 1 : cat.x - 8;

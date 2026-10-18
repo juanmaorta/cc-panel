@@ -35,3 +35,8 @@ test('running uses the real left/right sprites, not a mirror', () => {
   assert.deepEqual(catFrame('run', 1, 0), CAT_FRAMES.runRight[0]);
   assert.deepEqual(catFrame('run', -1, 0), CAT_FRAMES.runLeft[0]);
 });
+
+test('sprite colors come from the theme: outline = ink, fur = paper', async () => {
+  const { catColors } = await import('../src/ui/neko.ts');
+  assert.deepEqual(catColors({ ink: '#111', paper: '#eee' }), { k: '#111', w: '#eee' });
+});

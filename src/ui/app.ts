@@ -1,8 +1,8 @@
 import type { SessionView, View } from '../types.ts';
 import { flashFor, menuState, type Flash, type LimitState } from './menubar-logic.ts';
 import { initialCat, stepCat, type Cat, type CatMode } from './neko-logic.ts';
-import { CAT_H, CAT_PALETTE, catFrame } from './neko-sprites.ts';
-import { FLOOR_H, FLOOR_SCALE, drawFloor, type Ink } from './neko.ts';
+import { CAT_H, catFrame } from './neko-sprites.ts';
+import { FLOOR_H, FLOOR_SCALE, catColors, drawFloor, type Ink } from './neko.ts';
 import { sprite } from './pixel.ts';
 import { nextTheme, parseStored, resolveTheme } from './theme.ts';
 
@@ -127,7 +127,7 @@ function renderMenu(v: View): void {
 
 function drawMenuCat(): void {
   menuCatCtx.clearRect(0, 0, CAT_H, CAT_H);
-  sprite(menuCatCtx, catFrame(mood, 1, Math.floor(step / CAT_FRAME_STEPS)), CAT_PALETTE, 0, 0);
+  sprite(menuCatCtx, catFrame(mood, 1, Math.floor(step / CAT_FRAME_STEPS)), catColors(menuColors), 0, 0);
 }
 
 function renderClock(): void {
@@ -203,7 +203,7 @@ function renderTiles(v: View): void {
     if (t.el.className !== cls || !t.el.isConnected) {
       t.el.className = cls;
       grid.append(t.el);
-      t.colors = colorsOf(t);
+      t.colors = colorsOf(t.el);
     }
     t.el.title = `${s.cwd}\n${s.host} · ${s.sessionId}`;
     t.project.textContent = s.project;
@@ -221,14 +221,18 @@ function renderTiles(v: View): void {
   }
 }
 
-function colorsOf(t: Tile): Ink {
-  const css = getComputedStyle(t.el);
+function colorsOf(el: Element): Ink {
+  const css = getComputedStyle(el);
   return { ink: css.getPropertyValue('--ink').trim() || '#000', paper: css.getPropertyValue('--bg').trim() || '#fff' };
 }
 
+/** The menu bar cat follows the theme like the tile cats. */
+let menuColors: Ink = colorsOf(document.documentElement);
+
 /** Canvas floors cache their colors; re-read them whenever the theme changes. */
 function refreshColors(): void {
-  for (const t of tiles.values()) t.colors = colorsOf(t);
+  for (const t of tiles.values()) t.colors = colorsOf(t.el);
+  menuColors = colorsOf(document.documentElement);
 }
 
 const darkQuery = matchMedia('(prefers-color-scheme: dark)');

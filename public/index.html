@@ -15,12 +15,13 @@
     src: url("/fonts/ChicagoFLF.woff") format("woff");
     font-display: block;
   }
-  /* 1-bit, like the 1989 Mac that NekoDA ran on: no color, status told apart by patterns. */
-  :root { --bg: #ffffff; --ink: #000000; }
+  /* 1-bit, like the 1989 Mac that NekoDA ran on: no color, status told apart by patterns.
+     Softened like a white-phosphor CRT: paper a cool light gray, ink not quite black. */
+  :root { --bg: #e3e6e3; --ink: #1c1d1f; }
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) { --bg: #000000; --ink: #ffffff; }
+    :root:not([data-theme="light"]) { --bg: #17181a; --ink: #d3d7d4; }
   }
-  :root[data-theme="dark"] { --bg: #000000; --ink: #ffffff; }
+  :root[data-theme="dark"] { --bg: #17181a; --ink: #d3d7d4; }
   :root {
     --dither: repeating-conic-gradient(var(--ink) 0 25%, var(--bg) 0 50%) 0 0 / 2px 2px;
     --stripes: repeating-linear-gradient(to bottom, var(--ink) 0 1px, var(--bg) 1px 2px);
