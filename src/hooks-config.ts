@@ -16,8 +16,10 @@ interface HookGroup {
 
 type Settings = Record<string, unknown> & { hooks?: Record<string, HookGroup[]> };
 
+export type HookSpec = ReadonlyArray<readonly [event: string, matcher: string | undefined]>;
+
 /** Event → matcher (undefined = all). PostToolUse is unfiltered: it is what clears `waiting`. */
-const SPEC: ReadonlyArray<readonly [string, string | undefined]> = [
+export const CLAUDE_SPEC: HookSpec = [
   ['SessionStart', undefined],
   ['UserPromptSubmit', undefined],
   ['PreToolUse', 'AskUserQuestion|ExitPlanMode'],
@@ -27,6 +29,16 @@ const SPEC: ReadonlyArray<readonly [string, string | undefined]> = [
   ['Stop', undefined],
   ['StopFailure', undefined],
   ['SessionEnd', undefined],
+];
+
+/** Codex (0.163): same hook format, its own event set, no matchers. */
+export const CODEX_SPEC: HookSpec = [
+  ['SessionStart', undefined],
+  ['UserPromptSubmit', undefined],
+  ['PermissionRequest', undefined],
+  ['PostToolUse', undefined],
+  ['Stop', undefined],
+  ['Interrupt', undefined],
 ];
 
 const isOurs = (g: HookGroup) => g.hooks.some((h) => typeof h.command === 'string' && h.command.includes(MARKER));
@@ -44,10 +56,10 @@ export function uninstallHooks<T extends Settings>(settings: T): T {
   return out;
 }
 
-export function installHooks<T extends Settings>(settings: T, command: string): T {
+export function installHooks<T extends Settings>(settings: T, command: string, spec: HookSpec = CLAUDE_SPEC): T {
   const out = uninstallHooks(settings);
   const hooks = out.hooks ?? {};
-  for (const [event, matcher] of SPEC) {
+  for (const [event, matcher] of spec) {
     const group: HookGroup = { hooks: [{ type: 'command', command, timeout: 5 }] };
     if (matcher !== undefined) group.matcher = matcher;
     hooks[event] = [...(hooks[event] ?? []), group];

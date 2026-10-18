@@ -71,3 +71,11 @@ test('session name is optional, a string of at most 120 chars', () => {
   assert.equal(parseEvent({ ...valid, name: 'x'.repeat(121) }).ok, false);
   assert.equal(parseEvent({ ...valid, name: 7 }).ok, false);
 });
+
+test('agent is optional and limited to known agents', () => {
+  const ok = parseEvent({ ...valid, agent: 'codex' });
+  assert.ok(ok.ok);
+  assert.equal(ok.value.agent, 'codex');
+  assert.equal(parseEvent({ ...valid, agent: 'gemini' }).ok, false);
+  assert.ok(parseEvent({ ...valid, event: 'Interrupt' }).ok);
+});

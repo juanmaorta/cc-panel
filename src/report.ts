@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { HOOK_EVENTS, type HookEventName, type HubEvent } from './types.ts';
+import { HOOK_EVENTS, type Agent, type HookEventName, type HubEvent } from './types.ts';
 import { MAX_NAME, isSessionId, isUuid } from './validate.ts';
 
 function str(v: unknown): string | undefined {
@@ -11,13 +11,16 @@ function str(v: unknown): string | undefined {
  * Hook stdin payload → hub event. Only allow-listed fields leave the machine:
  * prompts, tool inputs and outputs are never forwarded.
  */
-export function toHubEvent(
-  payload: unknown,
-  host: string,
-  now: number,
-  env: Record<string, string | undefined> = {},
-  name?: string,
-): HubEvent | null {
+export interface EventContext {
+  /** The hook's environment: carries the cmux workspace/tab when running inside cmux. */
+  env?: Record<string, string | undefined>;
+  /** Session title, when known (Claude Code statusline). */
+  name?: string | undefined;
+  agent?: Agent;
+}
+
+export function toHubEvent(payload: unknown, host: string, now: number, ctx: EventContext = {}): HubEvent | null {
+  const env = ctx.env ?? {};
   if (typeof payload !== 'object' || payload === null) return null;
   const p = payload as Record<string, unknown>;
   const event = str(p.hook_event_name);
@@ -26,7 +29,7 @@ export function toHubEvent(
   if (!event || !sessionId || cwd === undefined) return null;
   if (!(HOOK_EVENTS as readonly string[]).includes(event)) return null;
 
-  const ev: HubEvent = { host, sessionId, event: event as HookEventName, cwd, ts: now };
+  const ev: HubEvent = { host, sessionId, event: event as HookEventName, cwd, ts: now, agent: ctx.agent ?? 'claude' };
   const toolName = str(p.tool_name);
   const notificationType = str(p.notification_type);
   if (toolName !== undefined) ev.toolName = toolName;
@@ -35,7 +38,7 @@ export function toHubEvent(
   const workspace = env.CMUX_WORKSPACE_ID;
   const surface = env.CMUX_SURFACE_ID;
   if (isUuid(workspace) && isUuid(surface)) ev.cmux = { workspace, surface };
-  if (name) ev.name = name;
+  if (ctx.name) ev.name = ctx.name;
   return ev;
 }
 

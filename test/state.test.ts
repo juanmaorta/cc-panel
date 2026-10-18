@@ -219,3 +219,13 @@ test('session title sticks across events that do not carry it', () => {
   const renamed = applyEvent(s, ev('Stop', T0 + 2, { name: 'Panel' }));
   assert.equal(renamed.sessions[sessionKey('laptop', 's1')]?.name, 'Panel');
 });
+
+test('Interrupt (Codex: turn cut with Esc) hands control back: idle', () => {
+  const s = run([ev('UserPromptSubmit', T0), ev('Interrupt', T0 + 1)]);
+  assert.equal(statusOf(s), 'idle');
+});
+
+test('sessions remember which agent runs them', () => {
+  const s = run([ev('SessionStart', T0, { agent: 'codex' }), ev('Stop', T0 + 1)]);
+  assert.equal(s.sessions[sessionKey('laptop', 's1')]?.agent, 'codex');
+});

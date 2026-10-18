@@ -52,6 +52,8 @@ function transition(ev: HubEvent): Transition | null {
       return { status: 'error' };
     case 'SessionEnd':
       return { status: 'ended' };
+    case 'Interrupt':
+      return { status: 'idle' };
   }
 }
 
@@ -94,6 +96,8 @@ export function applyEvent(store: Store, ev: HubEvent): Store {
   if (cmux) next.cmux = cmux;
   const name = ev.name ?? prev?.name;
   if (name) next.name = name;
+  const agent = ev.agent ?? prev?.agent;
+  if (agent) next.agent = agent;
 
   return { ...store, sessions: { ...store.sessions, [key]: next }, hosts };
 }

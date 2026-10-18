@@ -8,7 +8,11 @@ export const HOOK_EVENTS = [
   'Stop',
   'StopFailure',
   'SessionEnd',
+  'Interrupt', // Codex: the user cut the turn short
 ] as const;
+
+export const AGENTS = ['claude', 'codex'] as const;
+export type Agent = (typeof AGENTS)[number];
 
 export type HookEventName = (typeof HOOK_EVENTS)[number];
 
@@ -37,6 +41,7 @@ export interface HubEvent {
   cmux?: CmuxRef;
   /** Claude Code's session title (auto-generated or set with /rename). */
   name?: string;
+  agent?: Agent;
 }
 
 export interface LimitWindow {
@@ -72,6 +77,7 @@ export interface Session {
   detail?: string;
   cmux?: CmuxRef;
   name?: string;
+  agent?: Agent;
 }
 
 export interface HostRecord {

@@ -11,13 +11,15 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { configPath, defaultHostName, parseConfig } from '../src/config.ts';
-import { installHooks, uninstallHooks } from '../src/hooks-config.ts';
+import { CODEX_SPEC, installHooks, uninstallHooks } from '../src/hooks-config.ts';
 import { renderPlist, type JobSpec } from '../src/launchd.ts';
 
 const HOME = homedir();
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const NODE = process.execPath;
 const SETTINGS = join(HOME, '.claude', 'settings.json');
+const CODEX_DIR = join(HOME, '.codex');
+const CODEX_HOOKS = join(CODEX_DIR, 'hooks.json');
 const AGENTS = join(HOME, 'Library', 'LaunchAgents');
 const LOGS = join(HOME, 'Library', 'Logs', 'cc-panel');
 const DOMAIN = `gui/${process.getuid?.() ?? 501}`;
@@ -26,10 +28,11 @@ const HB_LABEL = 'com.cc-panel.heartbeat';
 
 const reportCmd = (mode: string) => `"${NODE}" "${join(ROOT, 'bin', 'report.ts')}" ${mode}`;
 
-function writeSettings(transform: (s: Record<string, unknown>) => Record<string, unknown>): void {
-  const current = existsSync(SETTINGS) ? (JSON.parse(readFileSync(SETTINGS, 'utf8')) as Record<string, unknown>) : {};
-  if (existsSync(SETTINGS)) copyFileSync(SETTINGS, `${SETTINGS}.bak-cc-panel`);
-  writeFileSync(SETTINGS, `${JSON.stringify(transform(current), null, 2)}\n`);
+/** Rewrites a JSON hooks file through `transform`, keeping a backup next to it. */
+function rewriteJson(file: string, transform: (s: Record<string, unknown>) => Record<string, unknown>): void {
+  const current = existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>) : {};
+  if (existsSync(file)) copyFileSync(file, `${file}.bak-cc-panel`);
+  writeFileSync(file, `${JSON.stringify(transform(current), null, 2)}\n`);
 }
 
 function launchctl(...args: string[]): void {
@@ -92,7 +95,9 @@ function install(argv: string[]): void {
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, `${JSON.stringify(raw, null, 2)}\n`, { mode: 0o600 });
 
-  writeSettings((s) => installHooks(s, reportCmd('event')));
+  rewriteJson(SETTINGS, (s) => installHooks(s, reportCmd('event')));
+  const codex = existsSync(CODEX_DIR);
+  if (codex) rewriteJson(CODEX_HOOKS, (s) => installHooks(s, reportCmd('event codex'), CODEX_SPEC));
 
   mkdirSync(LOGS, { recursive: true });
   if (values['no-hub']) {
@@ -108,11 +113,13 @@ function install(argv: string[]): void {
   console.log(`reports → ${c.hubUrl}`);
   if (!values['no-hub']) console.log(`panel:    http://${c.hub.bind === '0.0.0.0' ? 'localhost' : c.hub.bind}:${c.hub.port}/#token=${c.token}`);
   console.log(`hooks:    ${SETTINGS} (backup at settings.json.bak-cc-panel)`);
+  if (codex) console.log(`          ${CODEX_HOOKS} (backup at hooks.json.bak-cc-panel); Codex asks you to trust new hooks once`);
   console.log(`node:     ${NODE}  — re-run install after switching Node versions`);
 }
 
 function uninstall(): void {
-  writeSettings(uninstallHooks);
+  rewriteJson(SETTINGS, uninstallHooks);
+  if (existsSync(CODEX_HOOKS)) rewriteJson(CODEX_HOOKS, uninstallHooks);
   unload(HUB_LABEL);
   unload(HB_LABEL);
   console.log('hooks and launchd jobs removed; config and state left in place');

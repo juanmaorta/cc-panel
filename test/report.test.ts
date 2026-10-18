@@ -19,6 +19,7 @@ test('maps the fields the hub needs and nothing else', () => {
     event: 'PermissionRequest',
     cwd: '/Users/j/p',
     ts: 42,
+    agent: 'claude',
     toolName: 'Bash',
   });
 });
@@ -39,23 +40,23 @@ const WS = 'A74797B6-7297-46C0-A6EB-58F34F9747C9';
 const SURF = '5FD931CE-E304-41CF-A1F6-2398029034B8';
 
 test('picks up the cmux workspace and surface from the hook environment', () => {
-  const ev = toHubEvent({ ...base, hook_event_name: 'Stop' }, 'laptop', 1, { CMUX_WORKSPACE_ID: WS, CMUX_SURFACE_ID: SURF });
+  const ev = toHubEvent({ ...base, hook_event_name: 'Stop' }, 'laptop', 1, { env: { CMUX_WORKSPACE_ID: WS, CMUX_SURFACE_ID: SURF } });
   assert.deepEqual(ev?.cmux, { workspace: WS, surface: SURF });
 });
 
 test('ignores cmux ids that are missing or not UUIDs', () => {
-  assert.equal(toHubEvent({ ...base, hook_event_name: 'Stop' }, 'laptop', 1, {})?.cmux, undefined);
-  assert.equal(toHubEvent({ ...base, hook_event_name: 'Stop' }, 'laptop', 1, { CMUX_WORKSPACE_ID: WS })?.cmux, undefined);
+  assert.equal(toHubEvent({ ...base, hook_event_name: 'Stop' }, 'laptop', 1, { env: {} })?.cmux, undefined);
+  assert.equal(toHubEvent({ ...base, hook_event_name: 'Stop' }, 'laptop', 1, { env: { CMUX_WORKSPACE_ID: WS } })?.cmux, undefined);
   assert.equal(
-    toHubEvent({ ...base, hook_event_name: 'Stop' }, 'laptop', 1, { CMUX_WORKSPACE_ID: '; rm -rf /', CMUX_SURFACE_ID: SURF })?.cmux,
+    toHubEvent({ ...base, hook_event_name: 'Stop' }, 'laptop', 1, { env: { CMUX_WORKSPACE_ID: '; rm -rf /', CMUX_SURFACE_ID: SURF } })?.cmux,
     undefined,
   );
 });
 
 test('carries the session title when there is one', () => {
-  const ev = toHubEvent({ ...base, hook_event_name: 'Stop' }, 'laptop', 1, {}, 'Tweet de Kacper');
+  const ev = toHubEvent({ ...base, hook_event_name: 'Stop' }, 'laptop', 1, { name: 'Tweet de Kacper' });
   assert.equal(ev?.name, 'Tweet de Kacper');
-  assert.equal(toHubEvent({ ...base, hook_event_name: 'Stop' }, 'laptop', 1, {})?.name, undefined);
+  assert.equal(toHubEvent({ ...base, hook_event_name: 'Stop' }, 'laptop', 1)?.name, undefined);
 });
 
 test('session title comes from the statusline capture, trimmed and bounded', () => {
@@ -89,4 +90,13 @@ test('pruneSessionCaptures removes captures older than the max age', () => {
   assert.equal(existsSync(join(dir, 'new.json')), true);
   assert.equal(existsSync(join(dir, 'sub')), true, 'only .json files are touched');
   pruneSessionCaptures(join(dir, 'nope'), now, 1); // missing dir is fine
+});
+
+test('tags the agent; Claude is the default', () => {
+  assert.equal(toHubEvent({ ...base, hook_event_name: 'Stop' }, 'laptop', 1)?.agent, 'claude');
+  assert.equal(toHubEvent({ ...base, hook_event_name: 'Stop' }, 'laptop', 1, { agent: 'codex' })?.agent, 'codex');
+});
+
+test('maps Codex-only events', () => {
+  assert.equal(toHubEvent({ ...base, hook_event_name: 'Interrupt' }, 'laptop', 1, { agent: 'codex' })?.event, 'Interrupt');
 });

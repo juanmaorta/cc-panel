@@ -1,4 +1,4 @@
-import { HOOK_EVENTS, type CmuxRef, type Heartbeat, type HookEventName, type HubEvent, type LimitWindow, type Limits, type Result } from './types.ts';
+import { AGENTS, HOOK_EVENTS, type Agent, type CmuxRef, type Heartbeat, type HookEventName, type HubEvent, type LimitWindow, type Limits, type Result } from './types.ts';
 
 const HOST_RE = /^[A-Za-z0-9._-]{1,64}$/;
 const SESSION_RE = /^[A-Za-z0-9_-]{1,128}$/;
@@ -61,6 +61,10 @@ export function parseEvent(body: unknown): Result<HubEvent> {
   const value: HubEvent = { host, sessionId, event: event as HookEventName, cwd, ts };
   if (toolName.value !== undefined) value.toolName = toolName.value;
   if (notificationType.value !== undefined) value.notificationType = notificationType.value;
+  if (body.agent !== undefined) {
+    if (typeof body.agent !== 'string' || !(AGENTS as readonly string[]).includes(body.agent)) return { ok: false, error: 'invalid agent' };
+    value.agent = body.agent as Agent;
+  }
   if (body.name !== undefined) {
     if (typeof body.name !== 'string' || body.name.length > MAX_NAME) return { ok: false, error: 'invalid name' };
     value.name = body.name;

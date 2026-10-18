@@ -7,6 +7,7 @@ import { text } from 'node:stream/consumers';
 import { loadConfig } from '../src/config.ts';
 import { parseStatusline } from '../src/limits.ts';
 import { post, pruneSessionCaptures, readSessionName, toHubEvent } from '../src/report.ts';
+import { AGENTS, type Agent } from '../src/types.ts';
 
 const TIMEOUT_MS = 800;
 const LOG_DIR = join(homedir(), '.local', 'state', 'cc-panel');
@@ -38,13 +39,20 @@ function readLimits() {
   }
 }
 
+/** `report.ts event [agent]`: the installer passes `codex` for Codex hooks. */
+function agentArg(raw: string | undefined): Agent {
+  if (raw === undefined) return 'claude';
+  if (!(AGENTS as readonly string[]).includes(raw)) throw new Error(`unknown agent: ${raw}`);
+  return raw as Agent;
+}
+
 async function main(mode: string | undefined): Promise<void> {
   const config = loadConfig();
   if (mode === 'event') {
     const payload: unknown = JSON.parse(await text(process.stdin));
     const sessionId = (payload as { session_id?: unknown } | null)?.session_id;
     const name = typeof sessionId === 'string' ? readSessionName(SESSIONS_DIR, sessionId) : undefined;
-    const ev = toHubEvent(payload, config.host, Date.now(), process.env, name);
+    const ev = toHubEvent(payload, config.host, Date.now(), { env: process.env, name, agent: agentArg(process.argv[3]) });
     if (ev) await post(config.hubUrl, config.token, '/api/events', ev, TIMEOUT_MS);
     return;
   }

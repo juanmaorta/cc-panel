@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { installHooks, uninstallHooks, MARKER } from '../src/hooks-config.ts';
+import { CODEX_SPEC, installHooks, uninstallHooks, MARKER } from '../src/hooks-config.ts';
 
 const CMD = `/usr/local/bin/node /p/${MARKER}/bin/report.ts event`;
 
@@ -57,3 +57,16 @@ test('works on settings without hooks', () => {
   assert.ok(ours(out) > 0);
   assert.deepEqual(uninstallHooks(out), {});
 });
+
+test('Codex spec: only events Codex has, no matchers, foreign hooks kept, idempotent', () => {
+  const codexFile = { hooks: { Stop: [{ hooks: [{ type: 'command', command: 'orca codex-hook' }] }] } };
+  const out: any = installHooks(codexFile, CODEX_SPEC_CMD, CODEX_SPEC);
+  assert.equal(out.hooks.Stop[0].hooks[0].command, 'orca codex-hook');
+  const ours = Object.entries(out.hooks as Record<string, any[]>).filter(([, gs]) => gs.some((g) => g.hooks[0].command === CODEX_SPEC_CMD));
+  assert.deepEqual(ours.map(([e]) => e).sort(), ['Interrupt', 'PermissionRequest', 'PostToolUse', 'SessionStart', 'Stop', 'UserPromptSubmit']);
+  for (const [, gs] of ours) for (const g of gs) assert.equal(g.matcher, undefined);
+  assert.deepEqual(installHooks(out, CODEX_SPEC_CMD, CODEX_SPEC), out);
+  assert.deepEqual(uninstallHooks(out), codexFile);
+});
+
+const CODEX_SPEC_CMD = `/n /p/${MARKER}/bin/report.ts event codex`;

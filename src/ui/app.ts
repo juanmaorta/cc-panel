@@ -260,7 +260,7 @@ function renderTiles(v: View): void {
     // Claude's session title when there is one; the folder otherwise.
     t.project.textContent = s.name ?? s.project;
     t.status.textContent = [LABEL[s.status], detailLabel(s.detail)].filter(Boolean).join(' · ');
-    t.meta.textContent = [s.name ? s.project : null, age(v.generatedAt - s.since), multiHost ? s.host : null, s.hostOnline ? null : 'offline']
+    t.meta.textContent = [s.agent === 'codex' ? 'codex' : null, s.name ? s.project : null, age(v.generatedAt - s.since), multiHost ? s.host : null, s.hostOnline ? null : 'offline']
       .filter(Boolean)
       .join(' · ');
     grid.append(t.el); // append moves existing nodes: keeps view order without rebuilding

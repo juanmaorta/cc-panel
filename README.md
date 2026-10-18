@@ -115,6 +115,23 @@ Captures older than 48 h are pruned by the heartbeat.
 
 Without it the 5H/SEM bars show `--` and tiles show folder names.
 
+## Codex
+
+Codex (0.163+) has hooks in `~/.codex/hooks.json` with the same format as Claude Code's.
+When `~/.codex` exists, the installer merges its hooks there too (backup kept, other hooks
+untouched) and reports those sessions as `agent: codex`; tiles show `codex` underneath.
+Codex asks you to trust new hooks once.
+
+Differences with Claude Code:
+
+| | Claude Code | Codex 0.163 |
+|---|---|---|
+| waiting | permission, AskUserQuestion, ExitPlanMode, notifications | permission requests |
+| session end | `SessionEnd` hides the tile | no such event yet: the tile stays until the 24 h window |
+| `Interrupt` (Esc) | — | back to idle |
+| title | session title via statusline | folder name |
+| cmux click-to-focus | yes | yes (same env vars) |
+
 ## Click a tile to jump to its cmux tab
 
 Sessions running inside [cmux](https://cmux.com) report their workspace and tab
