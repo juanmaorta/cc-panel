@@ -54,6 +54,6 @@ test('fonts are well-formed', () => {
     assert.equal(g.length, 7, `big "${ch}"`);
     for (const row of g) assert.equal(row.length, 5, `big "${ch}"`);
   }
-  for (const ch of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789%-: ') assert.ok(SMALL[ch], `small missing "${ch}"`);
+  for (const ch of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789%-: !?') assert.ok(SMALL[ch], `small missing "${ch}"`);
   for (const ch of '0123456789%-') assert.ok(BIG[ch], `big missing "${ch}"`);
 });

@@ -16,7 +16,11 @@ export function loadStore(file: string, log: (msg: string) => void): Store {
     if (typeof parsed.sessions !== 'object' || typeof parsed.hosts !== 'object' || !parsed.sessions || !parsed.hosts) {
       throw new Error('unexpected shape');
     }
-    const store: Store = { sessions: parsed.sessions, hosts: parsed.hosts };
+    // Sessions persisted before firstSeenAt existed: best available approximation.
+    const sessions = Object.fromEntries(
+      Object.entries(parsed.sessions).map(([k, s]) => [k, { ...s, firstSeenAt: s.firstSeenAt ?? s.since }]),
+    );
+    const store: Store = { sessions, hosts: parsed.hosts };
     if (parsed.limits) store.limits = parsed.limits;
     return store;
   } catch (err) {

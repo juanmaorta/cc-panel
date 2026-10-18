@@ -138,3 +138,17 @@ test('UI module route rejects traversal and unknown files', async () => {
   assert.equal((await fetch(base + '/ui/..%2Fhub.ts')).status, 404);
   assert.equal((await fetch(base + '/ui/App.ts')).status, 404);
 });
+
+test('backfills firstSeenAt for sessions persisted before it existed', async () => {
+  const legacy = join(dir, 'legacy.json');
+  writeFileSync(legacy, JSON.stringify({
+    sessions: { 'laptop/x': { host: 'laptop', sessionId: 'x', cwd: '/p', status: 'done', since: 10, lastEventAt: clock } },
+    hosts: { laptop: { host: 'laptop', lastSeenAt: clock } },
+  }));
+  const other = createHub({
+    token: TOKEN, publicDir: dir, uiDir, stateFile: legacy, now: () => clock,
+    view: { hostTtlMs: 1, sessionWindowMs: 1 }, retentionMs: 172_800_000, saveDebounceMs: 0,
+  });
+  assert.equal(other.snapshot().sessions['laptop/x']?.firstSeenAt, 10);
+  await other.close();
+});

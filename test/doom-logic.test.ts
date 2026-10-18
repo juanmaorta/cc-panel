@@ -4,7 +4,7 @@ import { barState, flashFor, healthTier, sessionFace } from '../src/ui/doom-logi
 import type { SessionStatus, SessionView, View } from '../src/types.ts';
 
 function s(id: string, status: SessionStatus, host = 'laptop', hostOnline = true): SessionView {
-  return { host, sessionId: id, cwd: `/p/${id}`, project: id, status, since: 0, lastEventAt: 0, hostOnline };
+  return { host, sessionId: id, cwd: `/p/${id}`, project: id, status, firstSeenAt: 0, since: 0, lastEventAt: 0, hostOnline };
 }
 
 function view(sessions: SessionView[], extra: Partial<View> = {}): View {

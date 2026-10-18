@@ -50,6 +50,8 @@ export interface Session {
   sessionId: string;
   cwd: string;
   status: SessionStatus;
+  /** When the hub first heard of this session. Stable; drives seat assignment. */
+  firstSeenAt: number;
   /** When the current status was entered. */
   since: number;
   lastEventAt: number;

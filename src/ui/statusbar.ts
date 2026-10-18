@@ -1,5 +1,6 @@
 import type { BarState, Face } from './doom-logic.ts';
-import { BIG, FACE_H, FACE_W, PALETTE, SMALL, composeFace } from './sprites.ts';
+import { glyphs, px, smallText, smallWidth, sprite, type Ctx } from './pixel.ts';
+import { BIG, FACE_H, FACE_W, PALETTE, composeFace } from './sprites.ts';
 
 export const BAR_W = 320;
 export const BAR_H = 32;
@@ -21,13 +22,6 @@ const C = {
   keys: { blue: '#3a5cf0', yellow: '#e8c020', red: '#d82020' },
 } as const;
 
-type Ctx = CanvasRenderingContext2D;
-
-function px(ctx: Ctx, x: number, y: number, w: number, h: number, color: string): void {
-  ctx.fillStyle = color;
-  ctx.fillRect(x, y, w, h);
-}
-
 /** Deterministic grain so the stone texture does not shimmer between frames. */
 function stone(ctx: Ctx): void {
   px(ctx, 0, 0, BAR_W, BAR_H, C.stone);
@@ -48,28 +42,10 @@ function panel(ctx: Ctx, x: number, w: number): void {
   px(ctx, x + w - 1, 0, 1, BAR_H, C.stoneLight);
 }
 
-function glyphs(ctx: Ctx, font: Record<string, string[]>, text: string, x: number, y: number, scale: number, color: string, shade?: string): void {
-  let cx = x;
-  for (const ch of text) {
-    const g = font[ch] ?? font[' '];
-    if (g) {
-      g.forEach((row, gy) => {
-        [...row].forEach((bit, gx) => {
-          if (bit !== '#') return;
-          if (shade) px(ctx, cx + gx * scale + 1, y + gy * scale + 1, scale, scale, shade);
-          px(ctx, cx + gx * scale, y + gy * scale, scale, scale, color);
-        });
-      });
-    }
-    cx += ((g?.[0]?.length ?? 3) + 1) * scale;
-  }
-}
-
-const smallWidth = (text: string) => text.length * 4 - 1;
 const bigWidth = (text: string) => text.length * 12 - 2;
 
 function small(ctx: Ctx, text: string, x: number, y: number, color: string): void {
-  glyphs(ctx, SMALL, text, x, y, 1, color, C.shadow);
+  smallText(ctx, text, x, y, color, C.shadow);
 }
 
 function smallCentered(ctx: Ctx, text: string, x: number, w: number, y: number, color: string): void {
@@ -81,12 +57,7 @@ function big(ctx: Ctx, text: string, x: number, w: number): void {
 }
 
 export function drawFace(ctx: Ctx, face: Face, frame: number, x: number, y: number): void {
-  composeFace(face.expression, face.tier, frame).forEach((row, fy) => {
-    [...row].forEach((ch, fx) => {
-      const color = PALETTE[ch];
-      if (color && color !== 'transparent') px(ctx, x + fx, y + fy, 1, 1, color);
-    });
-  });
+  sprite(ctx, composeFace(face.expression, face.tier, frame), PALETTE, x, y);
 }
 
 function key(ctx: Ctx, x: number, y: number, color: string, lit: boolean): void {

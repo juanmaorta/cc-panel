@@ -1,5 +1,7 @@
 import type { SessionView, View } from '../types.ts';
 import { barState, flashFor, healthTier, sessionFace, type Flash } from './doom-logic.ts';
+import { drawRooms, roomLayout } from './room.ts';
+import { buildRooms, urgentKey } from './room-logic.ts';
 import { FACE_H, FACE_W } from './sprites.ts';
 import { BAR_H, BAR_W, drawBar, drawFaceTile } from './statusbar.ts';
 
@@ -56,6 +58,13 @@ bar.width = BAR_W;
 bar.height = BAR_H;
 const barCtx = bar.getContext('2d')!;
 
+const roomCanvas = $<HTMLCanvasElement>('room');
+const roomCtx = roomCanvas.getContext('2d')!;
+const main = $('main');
+
+type Mode = 'room' | 'tiles';
+let mode: Mode = store.get('cc-panel-mode') === 'tiles' ? 'tiles' : 'room';
+
 let view: View | null = null;
 let frame = 0;
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -84,10 +93,31 @@ function flash(kind: Flash): void {
   f.className = kind;
 }
 
+function paintRoom(v: View): void {
+  const rooms = buildRooms(v);
+  const layout = roomLayout(rooms.length, main.clientWidth, main.clientHeight);
+  if (roomCanvas.width !== layout.width || roomCanvas.height !== layout.height) {
+    roomCanvas.width = layout.width;
+    roomCanvas.height = layout.height;
+  }
+  roomCanvas.style.width = `${layout.width * layout.scale}px`;
+  roomCanvas.style.height = `${layout.height * layout.scale}px`;
+  drawRooms(roomCtx, rooms, layout, urgentKey(v), frame);
+}
+
+function applyMode(): void {
+  main.className = `${mode}-mode`;
+  $('mode').textContent = mode === 'room' ? 'LISTA' : 'SALA';
+}
+
 function paintFaces(): void {
   if (!view) return;
   const state = barState(view);
   drawBar(barCtx, state, frame);
+  if (mode === 'room') {
+    paintRoom(view);
+    return;
+  }
   const tier = healthTier(state.health);
   document.querySelectorAll<HTMLCanvasElement>('canvas.face').forEach((c, i) => {
     const s = view?.sessions[i];
@@ -160,6 +190,15 @@ $<HTMLFormElement>('login').addEventListener('submit', (e) => {
   void tick();
 });
 
+$('mode').addEventListener('click', () => {
+  mode = mode === 'room' ? 'tiles' : 'room';
+  store.set('cc-panel-mode', mode);
+  applyMode();
+  paintFaces();
+});
+addEventListener('resize', paintFaces);
+
+applyMode();
 void tick();
 setInterval(() => {
   if (token) void tick();

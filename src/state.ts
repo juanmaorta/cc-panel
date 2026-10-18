@@ -76,6 +76,7 @@ export function applyEvent(store: Store, ev: HubEvent): Store {
     sessionId: ev.sessionId,
     cwd: ev.cwd,
     status,
+    firstSeenAt: prev?.firstSeenAt ?? ev.ts,
     since: prev && prev.status === status ? prev.since : ev.ts,
     lastEventAt: ev.ts,
   };

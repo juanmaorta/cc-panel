@@ -178,3 +178,8 @@ test('limits: newest observation wins across hosts; view applies resets', () => 
   assert.equal(buildView(s, T0 + HOUR, viewOpts).limits?.fiveHour?.usedPct, 0);
   assert.equal(buildView(emptyStore(), T0, viewOpts).limits, null);
 });
+
+test('firstSeenAt is set once and never moves', () => {
+  const s = run([ev('SessionStart', T0), ev('UserPromptSubmit', T0 + 5), ev('Stop', T0 + 9)]);
+  assert.equal(s.sessions[sessionKey('laptop', 's1')]?.firstSeenAt, T0);
+});
