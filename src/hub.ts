@@ -215,7 +215,7 @@ export function createHub(opts: HubOptions): Hub {
       if (!session) throw new HttpError(404, 'unknown session');
       if (!session.cmux) throw new HttpError(409, 'session is not running in cmux');
       if (!relayAlive(host)) throw new HttpError(409, 'no cmux relay for this host');
-      deliver(host, { ...session.cmux, project: basename(session.cwd) || session.cwd });
+      deliver(host, { ...session.cmux, project: session.name ?? (basename(session.cwd) || session.cwd) });
       send(res, 202);
       return;
     }

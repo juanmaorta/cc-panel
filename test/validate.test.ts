@@ -63,3 +63,11 @@ test('cmux ref is optional and must be a pair of UUIDs', () => {
   assert.equal(parseEvent({ ...valid, cmux: { workspace: 'x', surface: ws } }).ok, false);
   assert.equal(parseEvent({ ...valid, cmux: 'nope' }).ok, false);
 });
+
+test('session name is optional, a string of at most 120 chars', () => {
+  const ok = parseEvent({ ...valid, name: 'Tweet de Kacper' });
+  assert.ok(ok.ok);
+  assert.equal(ok.value.name, 'Tweet de Kacper');
+  assert.equal(parseEvent({ ...valid, name: 'x'.repeat(121) }).ok, false);
+  assert.equal(parseEvent({ ...valid, name: 7 }).ok, false);
+});

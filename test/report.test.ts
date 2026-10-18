@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { toHubEvent } from '../src/report.ts';
+import { mkdtempSync, mkdirSync, utimesSync, writeFileSync, existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { pruneSessionCaptures, readSessionName, sessionNameFrom, toHubEvent } from '../src/report.ts';
 
 const base = { session_id: 'abc-123', cwd: '/Users/j/p', transcript_path: '/t.jsonl' };
 
@@ -47,4 +50,43 @@ test('ignores cmux ids that are missing or not UUIDs', () => {
     toHubEvent({ ...base, hook_event_name: 'Stop' }, 'laptop', 1, { CMUX_WORKSPACE_ID: '; rm -rf /', CMUX_SURFACE_ID: SURF })?.cmux,
     undefined,
   );
+});
+
+test('carries the session title when there is one', () => {
+  const ev = toHubEvent({ ...base, hook_event_name: 'Stop' }, 'laptop', 1, {}, 'Tweet de Kacper');
+  assert.equal(ev?.name, 'Tweet de Kacper');
+  assert.equal(toHubEvent({ ...base, hook_event_name: 'Stop' }, 'laptop', 1, {})?.name, undefined);
+});
+
+test('session title comes from the statusline capture, trimmed and bounded', () => {
+  assert.equal(sessionNameFrom({ session_name: '  Refactor auth  ' }), 'Refactor auth');
+  assert.equal(sessionNameFrom({ session_name: '' }), undefined);
+  assert.equal(sessionNameFrom({ session_name: 42 }), undefined);
+  assert.equal(sessionNameFrom({}), undefined);
+  assert.equal(sessionNameFrom(null), undefined);
+  assert.equal(sessionNameFrom({ session_name: 'x'.repeat(500) })?.length, 120);
+});
+
+test('readSessionName reads <dir>/<id>.json and refuses unsafe ids', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cc-panel-sess-'));
+  writeFileSync(join(dir, 'abc-123.json'), JSON.stringify({ session_name: 'Hola' }));
+  assert.equal(readSessionName(dir, 'abc-123'), 'Hola');
+  assert.equal(readSessionName(dir, 'missing'), undefined);
+  assert.equal(readSessionName(dir, '../abc-123'), undefined);
+  writeFileSync(join(dir, 'broken.json'), '{nope');
+  assert.equal(readSessionName(dir, 'broken'), undefined);
+});
+
+test('pruneSessionCaptures removes captures older than the max age', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cc-panel-prune-'));
+  mkdirSync(join(dir, 'sub'));
+  writeFileSync(join(dir, 'old.json'), '{}');
+  writeFileSync(join(dir, 'new.json'), '{}');
+  const now = Date.now();
+  utimesSync(join(dir, 'old.json'), new Date(now - 3 * 86_400_000), new Date(now - 3 * 86_400_000));
+  pruneSessionCaptures(dir, now, 2 * 86_400_000);
+  assert.equal(existsSync(join(dir, 'old.json')), false);
+  assert.equal(existsSync(join(dir, 'new.json')), true);
+  assert.equal(existsSync(join(dir, 'sub')), true, 'only .json files are touched');
+  pruneSessionCaptures(join(dir, 'nope'), now, 1); // missing dir is fine
 });

@@ -92,6 +92,8 @@ export function applyEvent(store: Store, ev: HubEvent): Store {
   if (detail !== undefined) next.detail = detail;
   const cmux = ev.cmux ?? prev?.cmux;
   if (cmux) next.cmux = cmux;
+  const name = ev.name ?? prev?.name;
+  if (name) next.name = name;
 
   return { ...store, sessions: { ...store.sessions, [key]: next }, hosts };
 }

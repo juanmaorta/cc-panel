@@ -212,3 +212,10 @@ test('events keep the account limits (regression: applyEvent dropped them)', () 
   s = applyEvent(s, ev('PostToolUse', T0 + 1));
   assert.equal(s.limits?.fiveHour?.usedPct, 40);
 });
+
+test('session title sticks across events that do not carry it', () => {
+  const s = run([ev('UserPromptSubmit', T0, { name: 'Tweet de Kacper' }), ev('Stop', T0 + 1)]);
+  assert.equal(s.sessions[sessionKey('laptop', 's1')]?.name, 'Tweet de Kacper');
+  const renamed = applyEvent(s, ev('Stop', T0 + 2, { name: 'Panel' }));
+  assert.equal(renamed.sessions[sessionKey('laptop', 's1')]?.name, 'Panel');
+});

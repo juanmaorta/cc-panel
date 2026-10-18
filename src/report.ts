@@ -1,5 +1,7 @@
+import { readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { HOOK_EVENTS, type HookEventName, type HubEvent } from './types.ts';
-import { isUuid } from './validate.ts';
+import { MAX_NAME, isSessionId, isUuid } from './validate.ts';
 
 function str(v: unknown): string | undefined {
   return typeof v === 'string' ? v : undefined;
@@ -14,6 +16,7 @@ export function toHubEvent(
   host: string,
   now: number,
   env: Record<string, string | undefined> = {},
+  name?: string,
 ): HubEvent | null {
   if (typeof payload !== 'object' || payload === null) return null;
   const p = payload as Record<string, unknown>;
@@ -32,7 +35,49 @@ export function toHubEvent(
   const workspace = env.CMUX_WORKSPACE_ID;
   const surface = env.CMUX_SURFACE_ID;
   if (isUuid(workspace) && isUuid(surface)) ev.cmux = { workspace, surface };
+  if (name) ev.name = name;
   return ev;
+}
+
+/** Claude Code's session title, from a statusline capture. */
+export function sessionNameFrom(capture: unknown): string | undefined {
+  if (typeof capture !== 'object' || capture === null) return undefined;
+  const raw = (capture as Record<string, unknown>).session_name;
+  if (typeof raw !== 'string') return undefined;
+  const name = raw.trim().slice(0, MAX_NAME);
+  return name || undefined;
+}
+
+/**
+ * The statusline writes one capture per session (<dir>/<session_id>.json); hooks do not
+ * receive the title, so the reporter looks it up there.
+ */
+export function readSessionName(dir: string, sessionId: string): string | undefined {
+  if (!isSessionId(sessionId)) return undefined;
+  try {
+    return sessionNameFrom(JSON.parse(readFileSync(join(dir, `${sessionId}.json`), 'utf8')));
+  } catch {
+    return undefined;
+  }
+}
+
+/** Per-session captures outlive their sessions; drop the stale ones. */
+export function pruneSessionCaptures(dir: string, now: number, maxAgeMs: number): void {
+  let files: string[];
+  try {
+    files = readdirSync(dir);
+  } catch {
+    return;
+  }
+  for (const f of files) {
+    if (!f.endsWith('.json')) continue;
+    const path = join(dir, f);
+    try {
+      if (now - statSync(path).mtimeMs > maxAgeMs) rmSync(path, { force: true });
+    } catch {
+      // raced with the statusline rewriting it: fine
+    }
+  }
 }
 
 export async function post(hubUrl: string, token: string, path: string, body: unknown, timeoutMs: number): Promise<void> {

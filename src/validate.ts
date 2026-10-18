@@ -4,6 +4,7 @@ const HOST_RE = /^[A-Za-z0-9._-]{1,64}$/;
 const SESSION_RE = /^[A-Za-z0-9_-]{1,128}$/;
 const MAX_CWD = 1024;
 const MAX_TAG = 64;
+export const MAX_NAME = 120;
 
 type Obj = Record<string, unknown>;
 
@@ -33,6 +34,10 @@ export function parseCmux(v: unknown): Result<CmuxRef> {
   return { ok: true, value: { workspace: v.workspace, surface: v.surface } };
 }
 
+export function isSessionId(v: unknown): v is string {
+  return typeof v === 'string' && SESSION_RE.test(v);
+}
+
 export function isHost(v: unknown): v is string {
   return typeof v === 'string' && HOST_RE.test(v);
 }
@@ -56,6 +61,10 @@ export function parseEvent(body: unknown): Result<HubEvent> {
   const value: HubEvent = { host, sessionId, event: event as HookEventName, cwd, ts };
   if (toolName.value !== undefined) value.toolName = toolName.value;
   if (notificationType.value !== undefined) value.notificationType = notificationType.value;
+  if (body.name !== undefined) {
+    if (typeof body.name !== 'string' || body.name.length > MAX_NAME) return { ok: false, error: 'invalid name' };
+    value.name = body.name;
+  }
   if (body.cmux !== undefined) {
     const cmux = parseCmux(body.cmux);
     if (!cmux.ok) return cmux;

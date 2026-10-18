@@ -35,6 +35,8 @@ export interface HubEvent {
   notificationType?: string;
   toolName?: string;
   cmux?: CmuxRef;
+  /** Claude Code's session title (auto-generated or set with /rename). */
+  name?: string;
 }
 
 export interface LimitWindow {
@@ -69,6 +71,7 @@ export interface Session {
   lastEventAt: number;
   detail?: string;
   cmux?: CmuxRef;
+  name?: string;
 }
 
 export interface HostRecord {

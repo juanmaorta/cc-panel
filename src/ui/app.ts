@@ -245,7 +245,7 @@ function renderTiles(v: View): void {
     if (s.canFocus) {
       t.el.tabIndex = 0;
       t.el.setAttribute('role', 'button');
-      t.el.setAttribute('aria-label', `Ir a la pestaña de ${s.project} en cmux`);
+      t.el.setAttribute('aria-label', `Ir a la pestaña de ${s.name ?? s.project} en cmux`);
     } else {
       t.el.removeAttribute('tabindex');
       t.el.removeAttribute('role');
@@ -257,9 +257,10 @@ function renderTiles(v: View): void {
       t.colors = colorsOf(t.el);
     }
     t.el.title = `${s.cwd}\n${s.host} · ${s.sessionId}`;
-    t.project.textContent = s.project;
+    // Claude's session title when there is one; the folder otherwise.
+    t.project.textContent = s.name ?? s.project;
     t.status.textContent = [LABEL[s.status], detailLabel(s.detail)].filter(Boolean).join(' · ');
-    t.meta.textContent = [age(v.generatedAt - s.since), multiHost ? s.host : null, s.hostOnline ? null : 'offline']
+    t.meta.textContent = [s.name ? s.project : null, age(v.generatedAt - s.since), multiHost ? s.host : null, s.hostOnline ? null : 'offline']
       .filter(Boolean)
       .join(' · ');
     grid.append(t.el); // append moves existing nodes: keeps view order without rebuilding
