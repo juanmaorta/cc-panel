@@ -93,7 +93,7 @@ export function applyEvent(store: Store, ev: HubEvent): Store {
   const cmux = ev.cmux ?? prev?.cmux;
   if (cmux) next.cmux = cmux;
 
-  return { sessions: { ...store.sessions, [key]: next }, hosts };
+  return { ...store, sessions: { ...store.sessions, [key]: next }, hosts };
 }
 
 export function applyHeartbeat(store: Store, hb: Heartbeat): Store {

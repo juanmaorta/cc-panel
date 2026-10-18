@@ -204,3 +204,11 @@ test('canFocus needs a cmux tab, an online host and a live relay', () => {
   const noTab = applyRelaySeen(run([ev('Stop', T0)]), 'laptop', T0);
   assert.equal(buildView(noTab, T0, opts).sessions[0]?.canFocus, false, 'session outside cmux');
 });
+
+test('events keep the account limits (regression: applyEvent dropped them)', () => {
+  let s = applyHeartbeat(emptyStore(), {
+    host: 'laptop', ts: T0, limits: { observedAt: T0, fiveHour: { usedPct: 40, resetsAt: T0 + HOUR } },
+  });
+  s = applyEvent(s, ev('PostToolUse', T0 + 1));
+  assert.equal(s.limits?.fiveHour?.usedPct, 40);
+});
