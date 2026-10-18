@@ -142,6 +142,8 @@ interface Tile {
   floor: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
   cat: Cat;
+  /** Resolved --c of the tile, refreshed when its status class changes. */
+  accent: string;
 }
 
 const tiles = new Map<string, Tile>();
@@ -158,7 +160,7 @@ function createTile(s: SessionView): Tile {
   floor.height = FLOOR_H;
   floor.style.height = `${FLOOR_H * FLOOR_SCALE}px`;
   root.append(text, floor);
-  return { session: s, el: root, project, status, meta, floor, ctx: floor.getContext('2d')!, cat: initialCat(s.sessionId, 64) };
+  return { session: s, el: root, project, status, meta, floor, ctx: floor.getContext('2d')!, cat: initialCat(s.sessionId, 64), accent: '#000' };
 }
 
 /** Keeps the floor at an integer scale; returns its native width. */
@@ -193,7 +195,12 @@ function renderTiles(v: View): void {
       tiles.set(key, t);
     }
     t.session = s;
-    t.el.className = `tile s-${s.status}${s.hostOnline ? '' : ' offline'}`;
+    const cls = `tile s-${s.status}${s.hostOnline ? '' : ' offline'}`;
+    if (t.el.className !== cls || !t.el.isConnected) {
+      t.el.className = cls;
+      grid.append(t.el);
+      t.accent = getComputedStyle(t.el).getPropertyValue('--c').trim() || '#000';
+    }
     t.el.title = `${s.cwd}\n${s.host} · ${s.sessionId}`;
     t.project.textContent = s.project;
     t.status.textContent = [LABEL[s.status], detailLabel(s.detail)].filter(Boolean).join(' · ');
@@ -228,7 +235,7 @@ function animateCats(): void {
     const target = moving && chasing !== null ? (chasing - left) / FLOOR_SCALE : null;
     const next = stepCat(t.cat, { status: t.session.status, hostOnline: t.session.hostOnline, width, target });
     t.cat = moving ? next : { ...next, x: t.cat.x };
-    drawFloor(t.ctx, width, t.cat, t.session.status, catFrame);
+    drawFloor(t.ctx, width, t.cat, t.accent, catFrame);
   }
 }
 
