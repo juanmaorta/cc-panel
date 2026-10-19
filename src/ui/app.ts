@@ -1,5 +1,6 @@
 import type { SessionView, View } from '../types.ts';
 import { flashFor, menuState, type Flash, type LimitState } from './menubar-logic.ts';
+import { STATUS_LABEL, age, detailLabel } from './labels.ts';
 import { hostsNeedingRelay } from './relay-hint.ts';
 import { initialCat, stepCat, type Cat, type CatMode } from './neko-logic.ts';
 import { CAT_H, catFrame } from './neko-sprites.ts';
@@ -17,27 +18,6 @@ const STEP_MS = 100;
 const CAT_FRAME_STEPS = 3;
 /** How long cats keep chasing after the last pointer movement. */
 const CHASE_MS = 4000;
-const LABEL: Record<SessionView['status'], string> = {
-  waiting: 'Te espera',
-  error: 'Error',
-  done: 'Listo',
-  working: 'Currando',
-  idle: 'Zzz',
-  ended: 'Fin',
-};
-
-function detailLabel(detail: string | undefined): string | undefined {
-  if (!detail) return undefined;
-  if (detail.startsWith('permission: ')) return `permiso ${detail.slice(12)}`;
-  const known: Record<string, string> = {
-    question: 'pregunta',
-    plan: 'plan',
-    permission_prompt: 'permiso',
-    elicitation_dialog: 'input',
-  };
-  return known[detail] ?? detail;
-}
-
 const store = {
   get(k: string): string | null {
     try {
@@ -72,15 +52,6 @@ let view: View | null = null;
 let step = 0;
 let mood: CatMode = 'sleep';
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
-
-function age(ms: number): string {
-  const s = Math.max(0, Math.round(ms / 1000));
-  if (s < 60) return `${s}s`;
-  const m = Math.round(s / 60);
-  if (m < 60) return `${m}m`;
-  const h = Math.floor(m / 60);
-  return h < 24 ? `${h}h${String(m % 60).padStart(2, '0')}` : `${Math.floor(h / 24)}d`;
-}
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
   const n = document.createElement(tag);
@@ -259,7 +230,7 @@ function renderTiles(v: View): void {
     t.el.title = `${s.cwd}\n${s.host} · ${s.sessionId}`;
     // Claude's session title when there is one; the folder otherwise.
     t.project.textContent = s.name ?? s.project;
-    t.status.textContent = [LABEL[s.status], detailLabel(s.detail)].filter(Boolean).join(' · ');
+    t.status.textContent = [STATUS_LABEL[s.status], detailLabel(s.detail)].filter(Boolean).join(' · ');
     t.meta.textContent = [s.agent === 'codex' ? 'codex' : null, s.name ? s.project : null, age(v.generatedAt - s.since), multiHost ? s.host : null, s.hostOnline ? null : 'offline']
       .filter(Boolean)
       .join(' · ');

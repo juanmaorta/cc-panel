@@ -162,6 +162,25 @@ A tile is clickable only when its session runs in cmux and that host's relay pol
 last minute; the menu bar shows `⌘` next to hosts with a live relay. Clicks older than
 10 s are dropped.
 
+## Menu bar (SwiftBar)
+
+A compact alternative to keeping the panel on screen: a cat in the macOS menu bar (the
+same oneko sprite, as a template image, so it follows the menu bar's light/dark tint)
+showing the most urgent state, plus how many sessions need you. The menu lists sessions
+(⚠ waiting, ✕ error, ✓ done, » working, z idle); choosing one jumps to its cmux tab
+through the hub and the relay, like clicking a tile. Limits, hosts and a link to the
+panel at the bottom.
+
+```sh
+brew install --cask swiftbar
+defaults write com.ameba.SwiftBar PluginDirectory -string ~/.config/swiftbar   # or pick it on first launch
+node bin/install.ts menubar   # writes cc-panel.5s.sh (refresh every 5 s) pinned to this Node
+open -a SwiftBar
+```
+
+Session text is sanitised before it reaches SwiftBar (`|` and newlines would otherwise
+let a session title inject item parameters such as `bash=`).
+
 ## Install
 
 Hub machine:

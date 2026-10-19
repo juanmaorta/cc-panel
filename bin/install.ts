@@ -1,5 +1,6 @@
 // Usage:
 //   node bin/install.ts install [--host NAME] [--hub-url URL] [--token T] [--bind ADDR] [--no-hub]
+//   node bin/install.ts menubar      (SwiftBar plugin)
 //   node bin/install.ts uninstall
 // Hub machine:      install (optionally --bind <tailscale-ip>)
 // Reporter-only:    install --no-hub --hub-url http://<hub>:7420 --token <hub token>
@@ -117,6 +118,34 @@ function install(argv: string[]): void {
   console.log(`node:     ${NODE}  — re-run install after switching Node versions`);
 }
 
+/** SwiftBar plugin: a wrapper pinned to this Node, since SwiftBar runs with a minimal PATH. */
+function menubar(): void {
+  let dir: string;
+  try {
+    dir = execFileSync('defaults', ['read', 'com.ameba.SwiftBar', 'PluginDirectory'], { encoding: 'utf8' }).trim();
+  } catch {
+    throw new Error('SwiftBar has no plugin folder yet: open SwiftBar once, or `defaults write com.ameba.SwiftBar PluginDirectory -string <dir>`');
+  }
+  mkdirSync(dir, { recursive: true });
+  const file = join(dir, 'cc-panel.5s.sh');
+  writeFileSync(
+    file,
+    [
+      '#!/bin/sh',
+      '# <swiftbar.title>cc-panel</swiftbar.title>',
+      '# <swiftbar.hideAbout>true</swiftbar.hideAbout>',
+      '# <swiftbar.hideRunInTerminal>true</swiftbar.hideRunInTerminal>',
+      '# <swiftbar.hideLastUpdated>true</swiftbar.hideLastUpdated>',
+      '# <swiftbar.hideDisablePlugin>true</swiftbar.hideDisablePlugin>',
+      '# <swiftbar.hideSwiftBar>true</swiftbar.hideSwiftBar>',
+      `exec "${NODE}" --disable-warning=ExperimentalWarning "${join(ROOT, 'bin', 'menubar.ts')}" "$@"`,
+      '',
+    ].join('\n'),
+    { mode: 0o755 },
+  );
+  console.log(`menu bar plugin: ${file}`);
+}
+
 function uninstall(): void {
   rewriteJson(SETTINGS, uninstallHooks);
   if (existsSync(CODEX_HOOKS)) rewriteJson(CODEX_HOOKS, uninstallHooks);
@@ -127,6 +156,7 @@ function uninstall(): void {
 
 const [cmd, ...rest] = process.argv.slice(2);
 if (cmd === 'install') install(rest);
+else if (cmd === 'menubar') menubar();
 else if (cmd === 'uninstall') uninstall();
 else {
   console.error('usage: install.ts install|uninstall [options]');
