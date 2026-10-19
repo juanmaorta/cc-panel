@@ -33,8 +33,18 @@ test('encodes a valid RGBA PNG with 2x density', () => {
 });
 
 test('cat template: outline opaque, everything else transparent', () => {
-  const png = catTemplatePng(['k.w', '...'], 3, 2);
+  const png = catTemplatePng(['k.w', 'k..'], 3, 2, 18);
   const raw = inflateSync(chunks(png).get('IDAT')!);
-  // row 0: filter, k=opaque black, .=transparent, w=transparent
-  assert.deepEqual([...raw.subarray(0, 13)], [0, 0, 0, 0, 255, 0, 0, 0, 0, 0, 0, 0, 0]);
+  // cropped to the outline (1 px wide): row 0 = filter byte + one opaque black pixel
+  assert.deepEqual([...raw.subarray(0, 5)], [0, 0, 0, 0, 255]);
+});
+
+test('cat template is cropped to its outline and sized to the menu bar height', () => {
+  const rows = ['....', '.k..', '.kk.', '....'];
+  const c = chunks(catTemplatePng(rows, 4, 4, 18));
+  const ihdr = c.get('IHDR')!;
+  assert.equal(ihdr.readUInt32BE(0), 2, 'cropped width');
+  assert.equal(ihdr.readUInt32BE(4), 2, 'cropped height');
+  // 2 px must render as 18 pt: 2 / 18 * 72 dpi = 8 dpi = 314.96 px/m
+  assert.equal(c.get('pHYs')!.readUInt32BE(0), Math.round((2 / 18) * (72 / 0.0254)));
 });

@@ -13,15 +13,15 @@ function chunk(type: string, data: Buffer): Buffer {
 const PPM_2X = 5669;
 
 /** Minimal RGBA PNG encoder (no filters), enough for menu bar icons. */
-export function encodePng(width: number, height: number, rgba: Uint8Array): Buffer {
+export function encodePng(width: number, height: number, rgba: Uint8Array, pixelsPerMetre = PPM_2X): Buffer {
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(width, 0);
   ihdr.writeUInt32BE(height, 4);
   ihdr[8] = 8; // bit depth
   ihdr[9] = 6; // RGBA
   const phys = Buffer.alloc(9);
-  phys.writeUInt32BE(PPM_2X, 0);
-  phys.writeUInt32BE(PPM_2X, 4);
+  phys.writeUInt32BE(pixelsPerMetre, 0);
+  phys.writeUInt32BE(pixelsPerMetre, 4);
   phys[8] = 1; // unit: metre
   const raw = Buffer.alloc(height * (1 + width * 4));
   for (let y = 0; y < height; y++) {
@@ -39,14 +39,27 @@ export function encodePng(width: number, height: number, rgba: Uint8Array): Buff
 
 /**
  * A 1-bit sprite as a macOS template image: only the outline ('k') is opaque, so the menu
- * bar tints it like any other icon and the cat reads as line art, Mac-style.
+ * bar tints it like any other icon and the cat reads as line art, Mac-style. Cropped to the
+ * outline and given a density that makes it exactly `heightPt` tall: sprites carry empty
+ * margins that would otherwise shrink the cat.
  */
-export function catTemplatePng(rows: readonly string[], width: number, height: number): Buffer {
-  const rgba = new Uint8Array(width * height * 4);
-  rows.forEach((row, y) => {
+export function catTemplatePng(rows: readonly string[], width: number, height: number, heightPt: number): Buffer {
+  let [x0, y0, x1, y1] = [width, height, -1, -1];
+  rows.forEach((row, y) =>
     [...row].forEach((ch, x) => {
-      if (ch === 'k') rgba[(y * width + x) * 4 + 3] = 255;
-    });
-  });
-  return encodePng(width, height, rgba);
+      if (ch !== 'k') return;
+      [x0, y0, x1, y1] = [Math.min(x0, x), Math.min(y0, y), Math.max(x1, x), Math.max(y1, y)];
+    }),
+  );
+  if (x1 < 0) [x0, y0, x1, y1] = [0, 0, width - 1, height - 1];
+  const w = x1 - x0 + 1;
+  const h = y1 - y0 + 1;
+  const rgba = new Uint8Array(w * h * 4);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (rows[y0 + y]?.[x0 + x] === 'k') rgba[(y * w + x) * 4 + 3] = 255;
+    }
+  }
+  // h px over heightPt points at 72 pt/inch.
+  return encodePng(w, h, rgba, Math.round((h / heightPt) * (72 / 0.0254)));
 }

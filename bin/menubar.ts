@@ -11,10 +11,12 @@ import { CAT_H, catFrame } from '../src/ui/neko-sprites.ts';
 import { CAT_W } from '../src/ui/neko-logic.ts';
 
 const TIMEOUT_MS = 2_000;
+/** Menu bar icons top out around 18pt. */
+const ICON_PT = 18;
 const config = loadConfig();
 const [mode, host, sessionId] = process.argv.slice(2);
 
-const icon = (mood: CatMode) => catTemplatePng(catFrame(mood, 1, 0), CAT_W, CAT_H).toString('base64');
+const icon = (mood: CatMode) => catTemplatePng(catFrame(mood, 1, 0), CAT_W, CAT_H, ICON_PT).toString('base64');
 
 if (mode === 'focus') {
   try {
