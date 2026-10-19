@@ -6,7 +6,6 @@ import { catTemplatePng } from '../src/png.ts';
 import { post } from '../src/report.ts';
 import { swiftbarMenu } from '../src/swiftbar.ts';
 import type { View } from '../src/types.ts';
-import type { CatMode } from '../src/ui/neko-logic.ts';
 import { CAT_H, catFrame } from '../src/ui/neko-sprites.ts';
 import { CAT_W } from '../src/ui/neko-logic.ts';
 
@@ -16,7 +15,11 @@ const ICON_PT = 18;
 const config = loadConfig();
 const [mode, host, sessionId] = process.argv.slice(2);
 
-const icon = (mood: CatMode) => catTemplatePng(catFrame(mood, 1, 0), CAT_W, CAT_H, ICON_PT).toString('base64');
+const ALERT_RGB = [255, 59, 48] as const; // macOS system red
+const icons = {
+  calm: catTemplatePng(catFrame('sit', 1, 0), CAT_W, CAT_H, ICON_PT).toString('base64'),
+  alert: catTemplatePng(catFrame('alert', 1, 0), CAT_W, CAT_H, ICON_PT, ALERT_RGB).toString('base64'),
+};
 
 if (mode === 'focus') {
   try {
@@ -40,11 +43,11 @@ if (mode === 'focus') {
         node: process.execPath,
         script: fileURLToPath(import.meta.url),
         panelUrl: new URL('/', config.hubUrl).toString(),
-        icon,
+        icons,
       }),
     );
   } catch (err) {
-    console.log(`? | templateImage=${icon('sleep')}`);
+    console.log(`? | templateImage=${icons.calm}`);
     console.log('---');
     console.log(`Hub inaccesible: ${(err instanceof Error ? err.message : String(err)).replace(/\|/g, '¦')}`);
   }

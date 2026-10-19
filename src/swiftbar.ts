@@ -1,5 +1,4 @@
 import type { SessionStatus, SessionView, View } from './types.ts';
-import type { CatMode } from './ui/neko-logic.ts';
 import { age, detailLabel } from './ui/labels.ts';
 import { menuState } from './ui/menubar-logic.ts';
 import { hostsNeedingRelay } from './ui/relay-hint.ts';
@@ -10,9 +9,12 @@ export interface MenuConfig {
   /** This plugin's entrypoint, re-invoked with `focus <host> <sessionId>`. */
   script: string;
   panelUrl: string;
-  /** Base64 template PNG for a cat mood. */
-  icon: (mood: CatMode) => string;
+  /** Base64 PNGs: `calm` is a template image (tinted by macOS), `alert` is drawn in red. */
+  icons: { calm: string; alert: string };
 }
+
+/** macOS system red. */
+const ALERT_COLOR = '#ff3b30';
 
 const MARK: Record<SessionStatus, string> = { waiting: '⚠', error: '✕', done: '✓', working: '»', idle: 'z', ended: '·' };
 
@@ -43,7 +45,10 @@ function sessionLine(s: SessionView, now: number, cfg: MenuConfig): string {
 
 export function swiftbarMenu(v: View, cfg: MenuConfig): string {
   const m = menuState(v);
-  const out = [`${m.tally.waiting > 0 ? m.tally.waiting : ''} | templateImage=${cfg.icon(m.mood)}`, '---'];
+  // The menu bar only answers "does anything need me?": calm otherwise, whatever else runs.
+  const waiting = m.tally.waiting;
+  const title = waiting > 0 ? `${waiting} | image=${cfg.icons.alert} color=${ALERT_COLOR}` : ` | templateImage=${cfg.icons.calm}`;
+  const out = [title, '---'];
 
   if (v.sessions.length === 0) out.push('Sin sesiones en 24 h');
   for (const s of v.sessions) out.push(sessionLine(s, v.generatedAt, cfg));

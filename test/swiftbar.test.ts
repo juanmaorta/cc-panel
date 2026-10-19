@@ -4,7 +4,12 @@ import { clean, swiftbarMenu, type MenuConfig } from '../src/swiftbar.ts';
 import type { SessionStatus, SessionView, View } from '../src/types.ts';
 
 const NOW = 1_800_000_000_000;
-const cfg: MenuConfig = { node: '/n/node', script: '/r/bin/menubar.ts', panelUrl: 'http://127.0.0.1:7420/', icon: () => 'ICON' };
+const cfg: MenuConfig = {
+  node: '/n/node',
+  script: '/r/bin/menubar.ts',
+  panelUrl: 'http://127.0.0.1:7420/',
+  icons: { calm: 'CALM', alert: 'ALERT' },
+};
 
 function s(id: string, status: SessionStatus, extra: Partial<SessionView> = {}): SessionView {
   return {
@@ -25,19 +30,21 @@ function view(sessions: SessionView[], extra: Partial<View> = {}): View {
 
 const lines = (out: string) => out.split('\n');
 
-test('title: cat icon for the mood plus how many sessions need you', () => {
-  const out = swiftbarMenu(view([s('a', 'waiting'), s('b', 'error'), s('c', 'done')]), cfg);
-  assert.equal(lines(out)[0], '2 | templateImage=ICON');
-  assert.equal(lines(out)[1], '---');
-  assert.equal(lines(swiftbarMenu(view([s('c', 'working')]), cfg))[0], ' | templateImage=ICON', 'no count when nothing waits');
+test('title: calm cat (template) when nothing needs you, whatever else is going on', () => {
+  for (const st of ['working', 'done', 'idle'] as const) {
+    assert.equal(lines(swiftbarMenu(view([s('a', st)]), cfg))[0], ' | templateImage=CALM', st);
+  }
+  assert.equal(lines(swiftbarMenu(view([]), cfg))[0], ' | templateImage=CALM');
 });
 
-test('the icon follows the most urgent state', () => {
-  const seen: string[] = [];
-  const spy = { ...cfg, icon: (mood: string) => (seen.push(mood), 'I') };
-  swiftbarMenu(view([s('a', 'working'), s('b', 'done')]), spy);
-  swiftbarMenu(view([]), spy);
-  assert.deepEqual(seen, ['wash', 'sleep']);
+test('title: red startled cat and red count when sessions wait or failed', () => {
+  const out = swiftbarMenu(view([s('a', 'waiting'), s('b', 'error'), s('c', 'done')]), cfg);
+  assert.equal(lines(out)[0], '2 | image=ALERT color=#ff3b30');
+  assert.equal(lines(out)[1], '---');
+});
+
+test('sessions on offline hosts do not raise the alert', () => {
+  assert.equal(lines(swiftbarMenu(view([s('a', 'waiting', { hostOnline: false })]), cfg))[0], ' | templateImage=CALM');
 });
 
 test('focusable sessions run the focus action; others are plain text', () => {

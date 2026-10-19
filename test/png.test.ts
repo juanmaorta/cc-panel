@@ -48,3 +48,8 @@ test('cat template is cropped to its outline and sized to the menu bar height', 
   // 2 px must render as 18 pt: 2 / 18 * 72 dpi = 8 dpi = 314.96 px/m
   assert.equal(c.get('pHYs')!.readUInt32BE(0), Math.round((2 / 18) * (72 / 0.0254)));
 });
+
+test('a colored (non-template) cat paints the outline in the given color', () => {
+  const raw = inflateSync(chunks(catTemplatePng(['k'], 1, 1, 18, [255, 59, 48])).get('IDAT')!);
+  assert.deepEqual([...raw], [0, 255, 59, 48, 255]);
+});

@@ -43,7 +43,14 @@ export function encodePng(width: number, height: number, rgba: Uint8Array, pixel
  * outline and given a density that makes it exactly `heightPt` tall: sprites carry empty
  * margins that would otherwise shrink the cat.
  */
-export function catTemplatePng(rows: readonly string[], width: number, height: number, heightPt: number): Buffer {
+export function catTemplatePng(
+  rows: readonly string[],
+  width: number,
+  height: number,
+  heightPt: number,
+  /** Outline color; black (the default) is what a template image wants. */
+  rgb: readonly [number, number, number] = [0, 0, 0],
+): Buffer {
   let [x0, y0, x1, y1] = [width, height, -1, -1];
   rows.forEach((row, y) =>
     [...row].forEach((ch, x) => {
@@ -57,7 +64,7 @@ export function catTemplatePng(rows: readonly string[], width: number, height: n
   const rgba = new Uint8Array(w * h * 4);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      if (rows[y0 + y]?.[x0 + x] === 'k') rgba[(y * w + x) * 4 + 3] = 255;
+      if (rows[y0 + y]?.[x0 + x] === 'k') rgba.set([rgb[0], rgb[1], rgb[2], 255], (y * w + x) * 4);
     }
   }
   // h px over heightPt points at 72 pt/inch.
