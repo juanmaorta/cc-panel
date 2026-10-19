@@ -149,6 +149,28 @@ hub runs under launchd. So on each machine, open a cmux tab and leave this runni
 npm run relay
 ```
 
+To launch it in one step after a reboot, add a custom command to `~/.config/cmux/cmux.json`
+(back it up first, then `cmux reload-config`) and run "cc-panel relay" from cmux's command
+palette:
+
+```jsonc
+"commands": [{
+  "name": "cc-panel relay",
+  "keywords": ["cc-panel", "relay"],
+  "workspace": {
+    "name": "cc-panel relay",
+    "cwd": "/path/to/cc-panel",
+    "layout": { "pane": { "surfaces": [{ "type": "terminal", "name": "relay", "command": "npm run relay" }] } }
+  }
+}]
+```
+
+It cannot start by itself: cmux only auto-resumes agent sessions; bindings set from its CLI
+(`cmux surface resume set`) are manual-restore only, by design.
+
+After a reboot: hub, heartbeat and hooks start on their own (launchd), the menu bar cat
+too once SwiftBar is a login item; only the relay needs that one palette command.
+
 The relay long-polls the hub (`GET /api/relay/next`) and, for each click, runs exactly
 `cmux workspace select`, `cmux focus-panel` and `open -b com.cmuxterm.app`, via
 `execFile` with no shell and only validated UUIDs. It can switch tabs; it cannot type into
