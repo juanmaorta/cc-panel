@@ -2,6 +2,7 @@
   "name": "cc-panel",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "description": "Multi-host status panel for Claude Code sessions",
   "type": "module",
   "engines": { "node": ">=24" },

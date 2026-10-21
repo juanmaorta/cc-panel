@@ -237,3 +237,8 @@ mandatory on every `/api` route. Keep it on the tailnet.
 
 - Estimated cost.
 - Pinned sessions.
+
+## License
+
+MIT — see [LICENSE](LICENSE). The ChicagoFLF font and the oneko cat bitmaps are public domain
+(see `public/fonts/README.ChicagoFLF.txt` and `scripts/gen-neko-sprites.py`).
