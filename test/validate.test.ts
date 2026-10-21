@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseEvent, parseHeartbeat } from '../src/validate.ts';
 
-const valid = { host: 'Jane-Laptop', sessionId: 'a1b2-c3', event: 'Stop', cwd: '/x', ts: 1 };
+const valid = { host: 'laptop', sessionId: 'a1b2-c3', event: 'Stop', cwd: '/x', ts: 1 };
 
 test('accepts a valid event and keeps optional fields', () => {
   const r = parseEvent({ ...valid, toolName: 'Bash', notificationType: 'permission_prompt' });
